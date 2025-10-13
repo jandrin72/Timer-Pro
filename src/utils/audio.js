@@ -3,6 +3,8 @@ class AudioUtil {
   static audioContext = null;
   static volume = 0.8;
   static enabled = true;
+  static storageKey = 'timer_pro_volume';
+  static _volumeLoaded = false;
 
   static async ensureContext() {
     if (!this.audioContext) {
@@ -14,14 +16,63 @@ class AudioUtil {
     }
   }
 
+  static readStoredVolume() {
+    try {
+      if (typeof window !== 'undefined' && window.StorageUtil) {
+        const stored = StorageUtil.get(this.storageKey);
+        if (typeof stored === 'number') {
+          return stored;
+        }
+        if (typeof stored === 'string') {
+          const parsed = parseFloat(stored);
+          return Number.isNaN(parsed) ? null : parsed;
+        }
+      } else if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(this.storageKey);
+        if (raw !== null) {
+          const parsed = parseFloat(raw);
+          return Number.isNaN(parsed) ? null : parsed;
+        }
+      }
+    } catch (error) {
+      console.warn('Unable to read audio volume from storage:', error);
+    }
+    return null;
+  }
+
+  static persistVolume(vol) {
+    try {
+      if (typeof window !== 'undefined' && window.StorageUtil) {
+        StorageUtil.set(this.storageKey, vol);
+      } else if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.storageKey, vol);
+      }
+    } catch (error) {
+      console.warn('Unable to persist audio volume:', error);
+    }
+  }
+
+  static ensureVolumeLoaded() {
+    if (this._volumeLoaded) return;
+    const stored = this.readStoredVolume();
+    if (typeof stored === 'number' && !Number.isNaN(stored)) {
+      this.volume = Math.max(0, Math.min(1, stored));
+    }
+    this._volumeLoaded = true;
+  }
+
   static setVolume(vol) {
-    this.volume = Math.max(0, Math.min(1, vol));
-    localStorage.setItem('audio_volume', this.volume);
+    this.ensureVolumeLoaded();
+    const numericVolume = Number.isFinite(vol) ? vol : parseFloat(vol);
+    const safeVolume = Math.max(0, Math.min(1, Number.isNaN(numericVolume) ? this.volume : numericVolume));
+    this.volume = safeVolume;
+    this.persistVolume(safeVolume);
+    return this.volume;
   }
 
   static getVolume() {
-    const saved = localStorage.getItem('audio_volume');
-    return saved ? parseFloat(saved) : this.volume;
+    this.ensureVolumeLoaded();
+    return this.volume;
   }
 
   static async playBeep(freq = 800, duration = 200) {

@@ -730,8 +730,8 @@
       }
 
       if (window.TranslationUtil) {
-        TranslationUtil.currentLanguage = localStorage.getItem('app_language') || 'es';
-        console.log('✅ TranslationUtil inicializado');
+        const lang = TranslationUtil.getLanguage();
+        console.log(`✅ TranslationUtil inicializado (${lang})`);
       }
 
       if (window.StorageUtil) {

@@ -1,5 +1,6 @@
 // utils/storage.js - Gestión centralizada de localStorage
 class StorageUtil {
+  static DEFAULT_HISTORY_LIMIT = 50;
   static get(key, defaultValue = null) {
     try {
       const item = localStorage.getItem(key);
@@ -47,11 +48,25 @@ class StorageUtil {
     const history = this.getHistory(timerType);
     history.unshift(workout);
 
-    if (history.length > 50) {
-      history.splice(50);
+    const historyLimit = this.getHistoryLimit();
+    if (historyLimit && history.length > historyLimit) {
+      history.splice(historyLimit);
     }
 
     return this.set(`${timerType}_history`, history);
+  }
+
+  static getHistoryLimit() {
+    const settings = this.getSettings();
+    const limit = settings && typeof settings.historyLimit !== 'undefined'
+      ? parseInt(settings.historyLimit, 10)
+      : this.DEFAULT_HISTORY_LIMIT;
+
+    if (Number.isNaN(limit) || limit <= 0) {
+      return this.DEFAULT_HISTORY_LIMIT;
+    }
+
+    return limit;
   }
 
   static getSettings() {

@@ -1,0 +1,62 @@
+/* Variables CSS y estilos base */
+:root {
+  /* Tema oscuro (noche) por defecto */
+  --bg: #0f172a;
+  --text: #e2e8f0;
+  --accent: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --success: #10b981;
+  --btn: #2563eb;
+  --btn-active: #1e40af;
+
+  /* Superficies y bordes */
+  --surface: #1e293b;
+  --surface-2: #0b1224;
+  --muted: #334155;
+  --border: #1f2a44;
+  --muted-text: #94a3b8;
+  --muted-2: #64748b;
+}
+
+/* Tema claro (día) */
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --accent: #16a34a;
+  --warn: #ea580c;
+  --danger: #dc2626;
+  --success: #059669;
+  --btn: #2563eb;
+  --btn-active: #1e40af;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --muted: #cbd5e1;
+  --border: #e2e8f0;
+  --muted-text: #475569;
+  --muted-2: #64748b;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  background: 
+    linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.75)),
+    url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80') center center/cover no-repeat fixed;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+[data-theme="light"] body {
+  background: 
+    linear-gradient(rgba(248, 250, 252, 0.70), rgba(248, 250, 252, 0.70)),
+    url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80') center center/cover no-repeat fixed;
+}

@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EMOM Timer Pro - Workout Timers</title>
+
+  <!-- Estilos modulares -->
+  <link rel="stylesheet" href="src/styles/main.css">
+  <link rel="stylesheet" href="src/styles/components.css">
+  <link rel="stylesheet" href="src/styles/themes.css">
+  <link rel="stylesheet" href="src/styles/responsive.css">
+
+  <!-- Fallback: CSS original completo -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- El contenido HTML se mantiene del original por ahora -->
+
+  <!-- Header común -->
+  <header class="header">
+    <div class="logo" onclick="showPage('home')" data-i18n="brand_title">Timer Pro</div>
+    <button class="back-btn" id="backBtn" onclick="showPage('home')" style="display: none;" data-i18n="back_menu">← Volver al menú</button>
+    <div class="controls">
+      <!-- Selector de idioma -->
+      <select id="languageSelect">
+        <option value="es">🇪🇸 Español</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="de">🇩🇪 Deutsch</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="it">🇮🇹 Italiano</option>
+        <option value="pt">🇵🇹 Português</option>
+        <option value="zh">🇨🇳 中文</option>
+      </select>
+      <!-- Botón de configuración -->
+      <button class="settings-btn" onclick="openSettings()" title="Configuración">⚙️</button>
+    </div>
+  </header>
+
+  <!-- Página Principal -->
+  <div id="home" class="page active">
+    <main class="main-content">
+      <div>
+        <h1 class="main-title" data-i18n="landing_title">Elige tu temporizador</h1>
+        <p class="main-subtitle" data-i18n="landing_subtitle">Selecciona el tipo de entrenamiento que quieres realizar</p>
+      </div>
+
+      <div class="timers-grid">
+        <!-- EMOM Timer -->
+        <div class="timer-card" onclick="showPage('emom')">
+          <span class="timer-icon">⏱️</span>
+          <h3 class="timer-name">EMOM</h3>
+          <p class="timer-desc" data-i18n="emom_desc">Every Minute On the Minute - Completa tu trabajo cada minuto</p>
+        </div>
+
+        <!-- Tabata Timer -->
+        <div class="timer-card" onclick="showPage('tabata')">
+          <span class="timer-icon">🔥</span>
+          <h3 class="timer-name">TABATA</h3>
+          <p class="timer-desc" data-i18n="tabata_desc">20s trabajo, 10s descanso - Intervalos de alta intensidad</p>
+        </div>
+
+        <!-- For Time Timer -->
+        <div class="timer-card" onclick="showPage('fortime')">
+          <span class="timer-icon">🚀</span>
+          <h3 class="timer-name">FOR TIME</h3>
+          <p class="timer-desc" data-i18n="for_time_desc">Completa el trabajo lo más rápido posible</p>
+        </div>
+
+        <!-- AMRAP Timer -->
+        <div class="timer-card" onclick="showPage('amrap')">
+          <span class="timer-icon">🔄</span>
+          <h3 class="timer-name">AMRAP</h3>
+          <p class="timer-desc" data-i18n="amrap_desc">As Many Rounds As Possible - Tantas rondas como puedas</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- Página EMOM App -->
+  <div id="emom" class="page">
+    <div class="app" id="emom_app">
+      <!-- Tabs Navigation -->
+      <div class="tabs-nav" id="emom_tabs-nav">
+        <button class="tab-btn active" data-tab="timer" data-i18n="tab_timer">Cronómetro</button>
+        <button class="tab-btn" data-tab="presets" data-i18n="tab_presets">Presets</button>
+        <button class="tab-btn" data-tab="history" data-i18n="tab_history">Historial</button>
+      </div>
+
+      <!-- Timer Tab -->
+      <div id="emom_timer-tab" class="tab-content active">
+        <h1 data-i18n="emom_app_title">EMOM Timer Pro</h1>
+
+        <div class="presets" id="emom_presetsContainer">
+          <!-- User-created preset buttons will be injected here by JS -->
+        </div>
+
+        <div class="quick" id="emom_quick">
+          <button data-quick="30">30 s</button>
+          <button data-quick="60" class="active">60 s</button>
+          <button data-quick="90">90 s</button>
+          <button data-quick="120">120 s</button>
+        </div>
+
+        <div class="input-row">
+          <label for="emom_secInput" data-i18n="seconds_per_cycle">Seconds per cycle:</label>
+          <input id="emom_secInput" type="number" min="10" max="999" placeholder="60" value="60" />
+        </div>
+
+        <div class="target-row">
+          <label for="emom_targetInput" data-i18n="target_cycles">Target cycles:</label>
+          <input id="emom_targetInput" type="number" min="1" max="999" placeholder="∞" />
+          <small style="color:var(--muted-text);font-size:12px" data-i18n="leave_empty_unlimited">(leave empty for unlimited)</small>
+        </div>
+
+        <div class="status idle" id="emom_status" data-i18n="ready">Ready</div>
+
+        <div class="prep" id="emom_prep" aria-live="polite" role="status">5</div>
+        <div class="timer" id="emom_timer" aria-live="polite" role="status">60</div>
+
+        <div class="controls">
+          <button id="emom_startBtn" data-i18n="start">Start</button>
+          <button id="emom_pauseBtn" data-i18n="pause">Pause</button>
+          <button id="emom_resumeBtn" disabled data-i18n="resume">Resume</button>
+          <button id="emom_resetBtn" data-i18n="reset">Reset</button>
+          <button id="emom_toggleWorkoutViewBtn" class="toggle-view-btn" style="display: none;" data-i18n-title="expand_view" title="Expandir vista de entrenamiento">⛶</button>
+        </div>
+
+        <div class="meta" id="emom_cycles" data-i18n="completed_cycles">Completed cycles: 0</div>
+        <div class="progress" id="emom_progress"></div>
+
+        <div class="support">
+          <div class="support-text" data-i18n="support_text">
+            Built with love for the EMOM community. If you want to support my work, a small donation goes a long way.
+          </div>
+          <div class="support-actions">
+            <a class="pp-link" href="https://www.paypal.me/alejandrorodri80" target="_blank" rel="noopener noreferrer" data-i18n="donate_paypal">Donate via PayPal</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Presets Tab -->
+      <div id="emom_presets-tab" class="tab-content">
+        <h1 data-i18n="custom_presets">Custom Presets</h1>
+        <p style="text-align:center;color:var(--muted-text);margin-bottom:20px" data-i18n="presets_description">Create and manage your custom EMOM presets</p>
+        <div style="text-align: center; margin-bottom: 20px;">
+          <button class="preset-btn add-preset" id="emom_addPresetBtn"><span class="plus" aria-hidden="true">+</span><span data-i18n="new_preset"></span></button>
+        </div>
+        <div id="emom_presetsList">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+
+      <!-- History Tab -->
+      <div id="emom_history-tab" class="tab-content">
+        <div class="history-header">
+          <h1 data-i18n="workout_history">Workout History</h1>
+          <div class="history-header-actions">
+            <button id="emom_exportHistoryBtn" class="action-btn export" data-action="export-history" data-i18n="export_csv">Export CSV</button>
+            <button id="emom_clearHistoryBtn" class="action-btn clear" data-action="clear-history" data-i18n="clear_all">Clear All</button>
+          </div>
+        </div>
+        <div class="history-stats" id="emom_historyStats">
+          <div class="stat-card">
+            <span class="stat-value" id="emom_totalWorkouts">0</span>
+            <div class="stat-label" data-i18n="total_workouts">Total Workouts</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="emom_totalCycles">0</span>
+            <div class="stat-label" data-i18n="total_cycles">Total Cycles</div>
+          </div>
+        </div>
+        <div class="history-list" id="emom_historyList">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Página Tabata App -->
+  <div id="tabata" class="page">
+    <div class="app" id="tabata_app">
+      <!-- Tabs Navigation -->
+      <div class="tabs-nav" id="tabata_tabs-nav">
+        <button class="tab-btn active" data-tab="timer" data-i18n="tab_timer">Cronómetro</button>
+        <button class="tab-btn" data-tab="presets" data-i18n="tab_presets">Presets</button>
+        <button class="tab-btn" data-tab="history" data-i18n="tab_history">Historial</button>
+      </div>
+      <!-- Timer Tab -->
+      <div id="tabata_timer-tab" class="tab-content active">
+        <h1 data-i18n="tabata_app_title">Cronómetro Tabata Pro</h1>
+        <!-- Custom Presets -->
+        <div class="presets" id="tabata_presetsContainer">
+          <!-- User-created preset buttons will be injected here by JS -->
+        </div>
+        <!-- Default Quick Presets -->
+        <div class="quick" id="tabata_quick">
+          <button class="quick-btn active" data-preset="20-10-8">20s / 10s</button>
+          <button class="quick-btn" data-preset="30-15-8">30s / 15s</button>
+          <button class="quick-btn" data-preset="40-20-8">40s / 20s</button>
+        </div>
+        <div class="input-row">
+          <label for="tabata_workInput" data-i18n="work_seconds">Trabajo (s):</label>
+          <input id="tabata_workInput" type="number" min="1" max="999" placeholder="20" value="20" />
+        </div>
+        <div class="input-row">
+          <label for="tabata_restInput" data-i18n="rest_seconds">Descanso (s):</label>
+          <input id="tabata_restInput" type="number" min="1" max="999" placeholder="10" value="10" />
+        </div>
+        <div class="input-row">
+          <label for="tabata_cyclesInput" data-i18n="cycles">Ciclos:</label>
+          <input id="tabata_cyclesInput" type="number" min="1" max="99" placeholder="8" value="8" />
+        </div>
+        <div class="status idle" id="tabata_status" data-i18n="ready">Listo</div>
+        <div class="prep" id="tabata_prep" aria-live="polite" role="status">5</div>
+        <div class="timer" id="tabata_timer" aria-live="polite" role="status">20</div>
+        <div class="controls">
+          <button id="tabata_startBtn" data-i18n="start">Empezar</button>
+          <button id="tabata_pauseBtn" data-i18n="pause">Pausar</button>
+          <button id="tabata_resumeBtn" disabled data-i18n="resume">Continuar</button>
+          <button id="tabata_resetBtn" data-i18n="reset">Reiniciar</button>
+          <button id="tabata_toggleWorkoutViewBtn" class="toggle-view-btn" style="display: none;" data-i18n-title="expand_view" title="Expandir vista de entrenamiento">⛶</button>
+        </div>
+        <div class="progress" id="tabata_progress" style="margin-top: 14px;">Ciclo 0/8</div>
+        <!-- Support / Donation Section -->
+        <div class="support">
+          <div class="support-text" data-i18n="support_text_tabata">
+            Construido con amor para la comunidad Tabata. Si quieres apoyar mi trabajo, una pequeña donación ayuda mucho.
+          </div>
+          <div class="support-actions">
+            <a class="pp-link" href="https://www.paypal.me/alejandrorodri80" target="_blank" rel="noopener noreferrer" data-i18n="donate_paypal">Donar vía PayPal</a>
+          </div>
+        </div>
+      </div>
+      <!-- Presets Tab -->
+      <div id="tabata_presets-tab" class="tab-content">
+        <h1 data-i18n="custom_presets">Presets Personalizados</h1>
+        <p style="text-align:center;color:var(--muted-text);margin-bottom:20px" data-i18n="presets_description_tabata">Crea y gestiona tus presets Tabata personalizados</p>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="preset-btn add-preset" id="tabata_addPresetBtn"><span class="plus" aria-hidden="true">+</span><span data-i18n="new_preset"></span></button>
+        </div>
+        <div id="tabata_presetsList">
+           <!-- Dynamic content -->
+        </div>
+      </div>
+      <!-- History Tab -->
+      <div id="tabata_history-tab" class="tab-content">
+        <div class="history-header">
+          <h1 data-i18n="workout_history">Historial de Entrenamientos</h1>
+          <div class="history-header-actions">
+            <button id="tabata_exportHistoryBtn" class="action-btn export" data-action="export-history" data-i18n="export_csv">Exportar CSV</button>
+            <button id="tabata_clearHistoryBtn" class="action-btn clear" data-action="clear-history" data-i18n="clear_all">Limpiar Todo</button>
+          </div>
+        </div>
+        <div class="history-stats" id="tabata_historyStats">
+          <div class="stat-card">
+            <span class="stat-value" id="tabata_totalWorkouts">0</span>
+            <div class="stat-label" data-i18n="total_workouts">Entrenamientos Totales</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="tabata_totalCycles">0</span>
+            <div class="stat-label" data-i18n="total_cycles">Ciclos Totales</div>
+          </div>
+        </div>
+        <div class="history-list" id="tabata_historyList">
+           <!-- Dynamic content -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Página For Time App -->
+  <div id="fortime" class="page">
+    <div class="app" id="fortime_app">
+      <!-- Tabs Navigation -->
+      <div class="tabs-nav" id="fortime_tabs-nav">
+        <button class="tab-btn active" data-tab="timer" data-i18n="tab_timer">Cronómetro</button>
+        <button class="tab-btn" data-tab="presets" data-i18n="tab_presets">Presets</button>
+        <button class="tab-btn" data-tab="history" data-i18n="tab_history">Historial</button>
+      </div>
+
+      <!-- Timer Tab -->
+      <div id="fortime_timer-tab" class="tab-content active">
+        <h1 data-i18n="fortime_app_title">Cronómetro For Time Pro</h1>
+        <div class="presets" id="fortime_presetsContainer">
+          <!-- User-created preset buttons will be injected here by JS -->
+        </div>
+        <div class="quick" id="fortime_quick">
+          <button data-quick="10">10 min</button>
+          <button data-quick="15">15 min</button>
+          <button data-quick="20">20 min</button>
+        </div>
+        <div class="target-row">
+          <label for="fortime_timeCapInput" data-i18n="time_cap">Time Cap (min):</label>
+          <input id="fortime_timeCapInput" type="number" min="1" max="999" placeholder="∞" />
+          <small style="color:var(--muted-text);font-size:12px" data-i18n="leave_empty_unlimited">(dejar vacío para ilimitado)</small>
+        </div>
+        <div class="status idle" id="fortime_status" data-i18n="ready">Listo</div>
+        <div class="prep" id="fortime_prep" aria-live="polite" role="status">5</div>
+        <div class="timer" id="fortime_timer" aria-live="polite" role="status">00:00.00</div>
+        <div class="controls">
+          <button id="fortime_startBtn" data-i18n="start">Empezar</button>
+          <button id="fortime_stopBtn" style="display:none;" data-i18n="stop">Detener</button>
+          <button id="fortime_pauseBtn" disabled data-i18n="pause">Pausar</button>
+          <button id="fortime_resumeBtn" disabled data-i18n="resume">Continuar</button>
+          <button id="fortime_lapBtn" disabled data-i18n="lap">Lap</button>
+          <button id="fortime_toggleWorkoutViewBtn" class="toggle-view-btn" style="display: none;" data-i18n-title="expand_view" title="Expandir vista de entrenamiento">⛶</button>
+          <button id="fortime_resetBtn" data-i18n="reset">Reiniciar</button>
+        </div>
+        <div class="laps-container" id="fortime_lapsContainer">
+          <ul class="laps-list" id="fortime_lapsList"></ul>
+        </div>
+        <div class="support">
+          <div class="support-text" data-i18n="support_text_fortime">
+            Construido con amor para la comunidad For Time. Si quieres apoyar mi trabajo, una pequeña donación ayuda mucho.
+          </div>
+          <div class="support-actions">
+            <a class="pp-link" href="https://www.paypal.me/alejandrorodri80" target="_blank" rel="noopener noreferrer" data-i18n="donate_paypal">Donar vía PayPal</a>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Presets Tab -->
+      <div id="fortime_presets-tab" class="tab-content">
+        <h1 data-i18n="custom_presets">Presets Personalizados</h1>
+        <p style="text-align:center;color:var(--muted-text);margin-bottom:20px" data-i18n="presets_description_fortime">Crea y gestiona tus presets For Time personalizados.</p>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="preset-btn add-preset" id="fortime_addPresetBtn"><span class="plus" aria-hidden="true">+</span><span data-i18n="new_preset"></span></button>
+        </div>
+        <div id="fortime_presetsList"></div>
+      </div>
+
+      <!-- History Tab -->
+      <div id="fortime_history-tab" class="tab-content">
+        <div class="history-header">
+          <h1 data-i18n="workout_history">Historial de Entrenamientos</h1>
+          <div class="history-header-actions">
+            <button id="fortime_exportHistoryBtn" class="action-btn export" data-action="export-history" data-i18n="export_csv">Exportar CSV</button>
+            <button id="fortime_clearHistoryBtn" class="action-btn clear" data-action="clear-history" data-i18n="clear_all">Limpiar Todo</button>
+          </div>
+        </div>
+        <div class="history-stats" id="fortime_historyStats">
+          <div class="stat-card">
+            <span class="stat-value" id="fortime_totalWorkouts">0</span>
+            <div class="stat-label" data-i18n="total_workouts">Entrenamientos Totales</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="fortime_totalLaps">0</span>
+            <div class="stat-label" data-i18n="total_laps">Laps Totales</div>
+          </div>
+        </div>
+        <div class="history-list" id="fortime_historyList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Página AMRAP App -->
+  <div id="amrap" class="page">
+    <div class="app" id="amrap_app">
+      <!-- Tabs Navigation -->
+      <div class="tabs-nav" id="amrap_tabs-nav">
+        <button class="tab-btn active" data-tab="timer" data-i18n="tab_timer">Cronómetro</button>
+        <button class="tab-btn" data-tab="presets" data-i18n="tab_presets">Presets</button>
+        <button class="tab-btn" data-tab="history" data-i18n="tab_history">Historial</button>
+      </div>
+
+      <!-- Timer Tab -->
+      <div id="amrap_timer-tab" class="tab-content active">
+        <h1 data-i18n="amrap_app_title">Cronómetro AMRAP Pro</h1>
+        <div class="presets" id="amrap_presetsContainer">
+          <!-- User-created preset buttons will be injected here by JS -->
+        </div>
+        <div class="quick" id="amrap_quick">
+          <button data-quick="10" class="active">10 min</button>
+          <button data-quick="15">15 min</button>
+          <button data-quick="20">20 min</button>
+        </div>
+        <div class="target-row">
+          <label for="amrap_durationInput" data-i18n="workout_duration">Duración (min):</label>
+          <input id="amrap_durationInput" type="number" min="1" max="999" placeholder="10" value="10" />
+        </div>
+        <div class="status idle" id="amrap_status" data-i18n="ready">Listo</div>
+        <div class="prep" id="amrap_prep" aria-live="polite" role="status">5</div>
+        <div class="timer" id="amrap_timer" aria-live="polite" role="status">10:00</div>
+        <div class="controls">
+          <button id="amrap_startBtn" data-i18n="start">Empezar</button>
+          <button id="amrap_pauseBtn" disabled data-i18n="pause">Pausar</button>
+          <button id="amrap_resumeBtn" disabled data-i18n="resume">Continuar</button>
+          <button id="amrap_roundBtn" disabled data-i18n="round">Round</button>
+          <button id="amrap_toggleWorkoutViewBtn" class="toggle-view-btn" style="display: none;" data-i18n-title="expand_view" title="Expandir vista de entrenamiento">⛶</button>
+          <button id="amrap_resetBtn" data-i18n="reset">Reiniciar</button>
+        </div>
+        <div class="meta" id="amrap_rounds" data-i18n="completed_rounds">Rondas completadas: 0</div>
+        <div class="support">
+          <div class="support-text" data-i18n="support_text_amrap">
+            Construido con amor para la comunidad AMRAP. Si quieres apoyar mi trabajo, una pequeña donación ayuda mucho.
+          </div>
+          <div class="support-actions">
+            <a class="pp-link" href="https://www.paypal.me/alejandrorodri80" target="_blank" rel="noopener noreferrer" data-i18n="donate_paypal">Donar vía PayPal</a>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Presets Tab -->
+      <div id="amrap_presets-tab" class="tab-content">
+        <h1 data-i18n="custom_presets">Presets Personalizados</h1>
+        <p style="text-align:center;color:var(--muted-text);margin-bottom:20px" data-i18n="presets_description_amrap">Crea y gestiona tus presets AMRAP personalizados.</p>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="preset-btn add-preset" id="amrap_addPresetBtn"><span class="plus" aria-hidden="true">+</span><span data-i18n="new_preset"></span></button>
+        </div>
+        <div id="amrap_presetsList"></div>
+      </div>
+
+      <!-- History Tab -->
+      <div id="amrap_history-tab" class="tab-content">
+        <div class="history-header">
+          <h1 data-i18n="workout_history">Historial de Entrenamientos</h1>
+          <div class="history-header-actions">
+            <button id="amrap_exportHistoryBtn" class="action-btn export" data-action="export-history" data-i18n="export_csv">Exportar CSV</button>
+            <button id="amrap_clearHistoryBtn" class="action-btn clear" data-action="clear-history" data-i18n="clear_all">Limpiar Todo</button>
+          </div>
+        </div>
+        <div class="history-stats" id="amrap_historyStats">
+          <div class="stat-card">
+            <span class="stat-value" id="amrap_totalWorkouts">0</span>
+            <div class="stat-label" data-i18n="total_workouts">Entrenamientos Totales</div>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="amrap_totalRounds">0</span>
+            <div class="stat-label" data-i18n="total_rounds">Rondas Totales</div>
+          </div>
+        </div>
+        <div class="history-list" id="amrap_historyList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="settingsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="settings">Configuración</h2>
+        <button class="modal-close" onclick="closeSettings()">×</button>
+      </div>
+      
+      <div class="settings-section">
+        <h3 data-i18n="appearance">Apariencia</h3>
+        <div class="setting-row">
+          <label data-i18n="theme">Tema</label>
+          <select id="themeSelect" style="background:var(--muted);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px">
+            <option value="dark" data-i18n="theme_night">Noche</option>
+            <option value="light" data-i18n="theme_day">Día</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3 data-i18n="audio_settings">Audio</h3>
+        <div class="setting-row">
+          <label data-i18n="volume">Volumen</label>
+          <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.8">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3 data-i18n="display">Pantalla</h3>
+        <div class="setting-row">
+          <label data-i18n="keep_screen_on">Mantener pantalla encendida</label>
+          <div class="toggle active" id="wakeLockToggle">
+            <div class="toggle-slider"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMOM Modals -->
+  <div class="modal" id="emom_presetModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="emom_presetModalTitle" data-i18n="new_preset_title">New Preset</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+      <div class="form-group">
+        <label for="emom_presetName" data-i18n="preset_name">Preset Name</label>
+        <input type="text" id="emom_presetName" data-i18n-placeholder="preset_name_placeholder">
+      </div>
+      <div class="form-group">
+        <label for="emom_presetSeconds" data-i18n="seconds_per_cycle_short">Seconds per cycle</label>
+        <input type="number" id="emom_presetSeconds" min="10" max="999" value="60">
+      </div>
+      <div class="form-group">
+        <label for="emom_presetCycles" data-i18n="target_cycles_short">Target cycles</label>
+        <input type="number" id="emom_presetCycles" min="1" max="999" data-i18n-placeholder="optional">
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" data-modal-cancel data-i18n="cancel">Cancel</button>
+        <button class="modal-btn primary" id="emom_savePreset" data-i18n="save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="emom_notesModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="workout_notes">Workout Notes</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+      <div class="form-group">
+        <label for="emom_workoutNotes" data-i18n="how_did_it_feel">How did it feel? (RPE, notes, etc.)</label>
+        <textarea id="emom_workoutNotes" data-i18n-placeholder="notes_placeholder"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="emom_skipNotes" data-i18n="skip">Skip</button>
+        <button class="modal-btn primary" id="emom_saveNotes" data-i18n="save_notes">Save Notes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="emom_completionModal">
+    <div class="modal-content completion-content">
+      <div class="completion-title" data-i18n="workout_complete">🎉 Workout Complete!</div>
+      <div class="completion-stats" id="emom_completionStats"></div>
+      <div class="completion-actions">
+        <button class="modal-btn primary" id="emom_shareResult" data-i18n="share_result">Share Result</button>
+        <button class="modal-btn secondary" id="emom_addNotesBtn" data-i18n="add_notes">Add Notes</button>
+        <button class="modal-btn secondary" data-modal-close data-i18n="close">Close</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Tabata Modals -->
+  <div class="modal" id="tabata_presetModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="tabata_presetModalTitle" data-i18n="new_preset_title_tabata">Nuevo Preset</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+      <div class="form-group">
+        <label for="tabata_presetName" data-i18n="preset_name">Nombre del Preset</label>
+        <input type="text" id="tabata_presetName" data-i18n-placeholder="preset_name_placeholder_tabata">
+      </div>
+      <div class="form-group">
+        <label for="tabata_presetWork" data-i18n="work_seconds_short">Segundos de trabajo</label>
+        <input type="number" id="tabata_presetWork" min="5" max="300" value="20">
+      </div>
+      <div class="form-group">
+        <label for="tabata_presetRest" data-i18n="rest_seconds_short">Segundos de descanso</label>
+        <input type="number" id="tabata_presetRest" min="5" max="300" value="10">
+      </div>
+      <div class="form-group">
+        <label for="tabata_presetCycles" data-i18n="cycles">Ciclos</label>
+        <input type="number" id="tabata_presetCycles" min="1" max="50" value="8">
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" data-modal-cancel data-i18n="cancel">Cancelar</button>
+        <button class="modal-btn primary" id="tabata_savePreset" data-i18n="save">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="tabata_notesModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="workout_notes_tabata">Notas del Entrenamiento</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+      <div class="form-group">
+        <label for="tabata_workoutNotes" data-i18n="how_did_it_feel">¿Cómo te sentiste? (RPE, notas, etc.)</label>
+        <textarea id="tabata_workoutNotes" data-i18n-placeholder="notes_placeholder_tabata"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="tabata_skipNotes" data-i18n="skip">Omitir</button>
+        <button class="modal-btn primary" id="tabata_saveNotes" data-i18n="save_notes">Guardar Notas</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="tabata_completionModal">
+    <div class="modal-content completion-content">
+      <div class="completion-title" data-i18n="workout_complete">🎉 ¡Entrenamiento Completado!</div>
+      <div class="completion-stats" id="tabata_completionStats"></div>
+      <div class="completion-actions">
+        <button class="modal-btn primary" id="tabata_shareResult" data-i18n="share_result">Compartir Resultado</button>
+        <button class="modal-btn secondary" id="tabata_addNotesBtn" data-i18n="add_notes">Agregar Notas</button>
+        <button class="modal-btn secondary" data-modal-close data-i18n="close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- For Time Modals -->
+  <div class="modal" id="fortime_presetModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="fortime_presetModalTitle" data-i18n="new_preset_title_fortime">Nuevo Preset</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+      <div class="form-group">
+        <label for="fortime_presetName" data-i18n="preset_name">Nombre del Preset</label>
+        <input type="text" id="fortime_presetName" data-i18n-placeholder="preset_name_placeholder_fortime">
+      </div>
+      <div class="form-group">
+        <label for="fortime_presetTimeCap" data-i18n="time_cap_minutes">Time Cap (minutos)</label>
+        <input type="number" id="fortime_presetTimeCap" min="1" max="999" data-i18n-placeholder="optional">
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" data-modal-cancel data-i18n="cancel">Cancelar</button>
+        <button class="modal-btn primary" id="fortime_savePreset" data-i18n="save">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="fortime_notesModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="workout_notes_fortime">Notas del Entrenamiento</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+      <div class="form-group">
+        <label for="fortime_workoutNotes" data-i18n="how_did_it_feel">¿Cómo te sentiste? (RPE, notas, etc.)</label>
+        <textarea id="fortime_workoutNotes" data-i18n-placeholder="notes_placeholder_fortime"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="fortime_skipNotes" data-i18n="skip">Omitir</button>
+        <button class="modal-btn primary" id="fortime_saveNotes" data-i18n="save_notes">Guardar Notas</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="fortime_completionModal">
+    <div class="modal-content completion-content">
+      <div class="completion-title" data-i18n="workout_complete">🎉 ¡Entrenamiento Completado!</div>
+      <div class="completion-stats" id="fortime_completionStats"></div>
+      <div class="completion-actions">
+        <button class="modal-btn primary" id="fortime_shareResult" data-i18n="share_result">Compartir Resultado</button>
+        <button class="modal-btn secondary" id="fortime_addNotesBtn" data-i18n="add_notes">Agregar Notas</button>
+        <button class="modal-btn secondary" data-modal-close data-i18n="close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AMRAP Modals -->
+  <div class="modal" id="amrap_presetModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="amrap_presetModalTitle" data-i18n="new_preset_title_amrap">Nuevo Preset</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+      <div class="form-group">
+        <label for="amrap_presetName" data-i18n="preset_name">Nombre del Preset</label>
+        <input type="text" id="amrap_presetName" data-i18n-placeholder="preset_name_placeholder_amrap">
+      </div>
+      <div class="form-group">
+        <label for="amrap_presetDuration" data-i18n="workout_duration">Duración (minutos)</label>
+        <input type="number" id="amrap_presetDuration" min="1" max="999" value="10">
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" data-modal-cancel data-i18n="cancel">Cancelar</button>
+        <button class="modal-btn primary" id="amrap_savePreset" data-i18n="save">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="amrap_notesModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="workout_notes_amrap">Notas del Entrenamiento</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+      <div class="form-group">
+        <label for="amrap_workoutNotes" data-i18n="how_did_it_feel">¿Cómo te sentiste? (RPE, notas, etc.)</label>
+        <textarea id="amrap_workoutNotes" data-i18n-placeholder="notes_placeholder_amrap"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="amrap_skipNotes" data-i18n="skip">Omitir</button>
+        <button class="modal-btn primary" id="amrap_saveNotes" data-i18n="save_notes">Guardar Notas</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="amrap_completionModal">
+    <div class="modal-content completion-content">
+      <div class="completion-title" data-i18n="workout_complete">🎉 ¡Entrenamiento Completado!</div>
+      <div class="completion-stats" id="amrap_completionStats"></div>
+      <div class="completion-actions">
+        <button class="modal-btn primary" id="amrap_shareResult" data-i18n="share_result">Compartir Resultado</button>
+        <button class="modal-btn secondary" id="amrap_addNotesBtn" data-i18n="add_notes">Agregar Notas</button>
+        <button class="modal-btn secondary" data-modal-close data-i18n="close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vista de Entrenamiento Simplificada -->
+  <div id="workoutView" class="workout-view">
+    <button id="workoutClose" class="workout-close">×</button>
+    <div id="workoutStatus" class="workout-status" style="display: none;"></div>
+    <div id="workoutPrep" class="workout-prep" aria-live="polite" role="status">5</div>
+    <div id="workoutTimer" class="workout-timer" aria-live="polite" role="status">00:00.00</div>
+    <div id="workoutProgress" class="workout-progress" style="display: none;"></div>
+    <div class="workout-controls">
+      <button id="workoutPauseBtn" class="workout-btn pause"></button>
+      <button id="workoutLapBtn" class="workout-btn lap" style="display: none;"></button>
+    </div>
+    <div class="workout-laps" style="display: none;">
+      <ul id="workoutLapsList" class="laps-list"></ul>
+    </div>
+  </div>
+
+  
+
+  <!-- Scripts - Utilidades primero -->
+  <script src="src/utils/storage.js"></script>
+  <script src="src/utils/audio.js"></script>
+  <script src="src/utils/translations.js"></script>
+  <script src="src/utils/helpers.js"></script>
+  <script src="src/utils/wakeLock.js"></script>
+
+  <!-- Aplicación original como fallback -->
+  <script src="app.js"></script>
+
+  <!-- Inicialización modular -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🚀 Inicializando Timer Pro con arquitectura modular...');
+
+      // Inicializar utilidades
+      if (window.AudioUtil) {
+        AudioUtil.setVolume(AudioUtil.getVolume());
+        console.log('✅ AudioUtil inicializado');
+      }
+
+      if (window.TranslationUtil) {
+        TranslationUtil.currentLanguage = localStorage.getItem('app_language') || 'es';
+        console.log('✅ TranslationUtil inicializado');
+      }
+
+      if (window.StorageUtil) {
+        console.log('✅ StorageUtil disponible');
+      }
+
+      console.log('✅ Timer Pro App con arquitectura modular lista');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+/* Media queries y responsive */
+@media (max-width: 768px) {
+  .timers-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .timer-card {
+    padding: 24px 20px;
+  }
+}

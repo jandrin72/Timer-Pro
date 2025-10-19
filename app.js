@@ -12,6 +12,49 @@
       return key;
     };
 
+    const RPE_CONFIG = {
+      emom: {
+        placeholder: 'rpe_select_placeholder_emom',
+        options: ['rpe_emom_4', 'rpe_emom_5', 'rpe_emom_6', 'rpe_emom_7', 'rpe_emom_8', 'rpe_emom_9', 'rpe_emom_10']
+      },
+      tabata: {
+        placeholder: 'rpe_select_placeholder_tabata',
+        options: ['rpe_tabata_6', 'rpe_tabata_7', 'rpe_tabata_8', 'rpe_tabata_9', 'rpe_tabata_10']
+      },
+      fortime: {
+        placeholder: 'rpe_select_placeholder_fortime',
+        options: ['rpe_fortime_5', 'rpe_fortime_6', 'rpe_fortime_7', 'rpe_fortime_8', 'rpe_fortime_9', 'rpe_fortime_10']
+      },
+      amrap: {
+        placeholder: 'rpe_select_placeholder_amrap',
+        options: ['rpe_amrap_5', 'rpe_amrap_6', 'rpe_amrap_7', 'rpe_amrap_8', 'rpe_amrap_9', 'rpe_amrap_10']
+      }
+    };
+
+    function populateRpeSelect(selectEl, timerKey, selectedValue = null) {
+      if (!selectEl) return;
+      const config = RPE_CONFIG[timerKey];
+      if (!config) return;
+      const valueToSet = selectedValue !== null && selectedValue !== undefined ? selectedValue : selectEl.value;
+      let optionsHtml = `<option value="">${t(config.placeholder)}</option>`;
+      config.options.forEach(key => {
+        optionsHtml += `<option value="${key}">${t(key)}</option>`;
+      });
+      selectEl.innerHTML = optionsHtml;
+      if (valueToSet && config.options.includes(valueToSet)) {
+        selectEl.value = valueToSet;
+      } else {
+        selectEl.value = '';
+      }
+    }
+
+    function getRpeText(timerKey, rpeKey) {
+      if (!rpeKey) return '';
+      const config = RPE_CONFIG[timerKey];
+      if (!config || !config.options.includes(rpeKey)) return '';
+      return t(rpeKey);
+    }
+
     function translatePage() {
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
@@ -214,7 +257,7 @@
       },
       
       cacheDOMElements() {
-        const ids = ['app', 'secInput', 'targetInput', 'status', 'prep', 'timer', 'startBtn', 'pauseBtn', 'resumeBtn', 'resetBtn', 'cycles', 'progress', 'presetsContainer', 'addPresetBtn', 'quick', 'tabs-nav', 'timer-tab', 'presets-tab', 'history-tab', 'presetsList', 'historyList', 'totalWorkouts', 'totalCycles', 'clearHistoryBtn', 'exportHistoryBtn', 'presetModal', 'presetModalTitle', 'presetName', 'presetSeconds', 'presetCycles', 'savePreset', 'notesModal', 'workoutNotes', 'skipNotes', 'saveNotes', 'completionModal', 'completionStats', 'shareResult', 'addNotesBtn', 'toggleWorkoutViewBtn'];
+        const ids = ['app', 'secInput', 'targetInput', 'status', 'prep', 'timer', 'startBtn', 'pauseBtn', 'resumeBtn', 'resetBtn', 'cycles', 'progress', 'presetsContainer', 'addPresetBtn', 'quick', 'tabs-nav', 'timer-tab', 'presets-tab', 'history-tab', 'presetsList', 'historyList', 'totalWorkouts', 'totalCycles', 'clearHistoryBtn', 'exportHistoryBtn', 'presetModal', 'presetModalTitle', 'presetName', 'presetSeconds', 'presetCycles', 'savePreset', 'notesModal', 'rpeSelect', 'workoutNotes', 'skipNotes', 'saveNotes', 'completionModal', 'completionStats', 'shareResult', 'addNotesBtn', 'toggleWorkoutViewBtn'];
         ids.forEach(id => this.els[id] = document.getElementById(`emom_${id}`));
         this.els.tabBtns = Array.from(document.querySelectorAll('#emom_tabs-nav .tab-btn'));
         this.els.tabContents = Array.from(document.querySelectorAll('#emom_app .tab-content'));
@@ -228,6 +271,7 @@
         this.els.workoutPrep = document.getElementById('workoutPrep');
         this.els.workoutPauseBtn = document.getElementById('workoutPauseBtn');
         this.els.workoutProgress = document.getElementById('workoutProgress');
+        populateRpeSelect(this.els.rpeSelect, 'emom');
       },
 
       setupEventListeners() {
@@ -302,6 +346,7 @@
       updateLanguage() {
         this.updateUI();
         this.renderPresets();
+        populateRpeSelect(this.els.rpeSelect, 'emom');
         this.loadHistory();
       },
 
@@ -515,6 +560,11 @@
         victoryBells();
         this.saveWorkout({ cycles: this.cycles, secondsPerCycle: this.cycleSeconds, totalTime: this.cycles * this.cycleSeconds });
         this.closeWorkoutView();
+        if (this.currentWorkout) {
+          this.els.workoutNotes.value = this.currentWorkout.notes || '';
+          populateRpeSelect(this.els.rpeSelect, 'emom', this.currentWorkout.rpe || null);
+          this.els.notesModal.setAttribute('data-workout-id', '');
+        }
         setTimeout(() => this.els.notesModal.classList.add('active'), 1000);
         setTimeout(() => this.resetAll(), 1200);
       },
@@ -666,11 +716,13 @@
         this.els.historyList.innerHTML = history.map(w => {
           const date = new Date(w.date);
           const duration = Math.floor((w.totalTime) / 60);
+          const rpeText = getRpeText('emom', w.rpe);
           return `
           <div class="history-item">
             <div class="history-date">${date.toLocaleDateString()} • ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             <div class="history-performance">${w.cycles} cycles × ${w.secondsPerCycle}s</div>
             <div class="history-details">${duration}min workout</div>
+            ${rpeText ? `<div class="history-notes">${t('history_rpe_entry', { rpe: rpeText })}</div>` : ''}
             ${w.notes ? `<div class="history-notes">"${w.notes}"</div>` : ''}
             <div class="history-actions">
               <button class="history-btn edit" data-action="edit-history" data-id="${w.id}">${t('edit')}</button>
@@ -689,32 +741,42 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'secondsPerCycle', 'completedCycles', 'totalTimeSeconds', 'notes'];
-        const rows = history.map(w => [
-          new Date(w.date).toISOString(),
-          w.secondsPerCycle,
-          w.cycles,
-          w.totalTime,
-          (w.notes || '').replace(/[,\n"]/g, ' ')
-        ]);
+        const head = ['date', 'secondsPerCycle', 'completedCycles', 'totalTimeSeconds', 'rpe', 'notes'];
+        const rows = history.map(w => {
+          const rpeText = getRpeText('emom', w.rpe);
+          return [
+            new Date(w.date).toISOString(),
+            w.secondsPerCycle,
+            w.cycles,
+            w.totalTime,
+            (rpeText || '').replace(/[,\n"]/g, ' '),
+            (w.notes || '').replace(/[,\n"]/g, ' ')
+          ];
+        });
         const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
         downloadCSV(csv, 'emom_history.csv');
       },
-      saveWorkout(data, notes = '') {
-        const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes };
+      saveWorkout(data, notes = '', rpe = null) {
+        const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes, rpe };
         let history = this.getHistory();
         history.unshift(workout);
         if (history.length > 50) history.pop();
         this.saveHistory(history);
         this.currentWorkout = workout;
       },
-      updateWorkoutNotes(id, notes) {
+      updateWorkoutNotes(id, notes, rpe = null) {
+        const cleanedRpe = rpe || null;
         let history = this.getHistory();
         const workout = history.find(w => w.id === id);
         if (workout) {
           workout.notes = notes;
+          workout.rpe = cleanedRpe;
           this.saveHistory(history);
           this.loadHistory();
+        }
+        if (this.currentWorkout && this.currentWorkout.id === id) {
+          this.currentWorkout.notes = notes;
+          this.currentWorkout.rpe = cleanedRpe;
         }
       },
       deleteWorkout(id) {
@@ -727,6 +789,9 @@
       // Modals
       closeAllModals() {
         document.querySelectorAll('#emom_presetModal, #emom_notesModal, #emom_completionModal').forEach(m => m.classList.remove('active'));
+        if (this.els.notesModal) {
+          this.els.notesModal.setAttribute('data-workout-id', '');
+        }
       },
       handleSkipNotes() {
         this.closeAllModals();
@@ -734,12 +799,12 @@
       },
       handleSaveNotes() {
         const notes = this.els.workoutNotes.value.trim();
+        const rpeValue = this.els.rpeSelect.value || null;
         const workoutId = parseInt(this.els.notesModal.getAttribute('data-workout-id'));
         if (workoutId) {
-          this.updateWorkoutNotes(workoutId, notes);
+          this.updateWorkoutNotes(workoutId, notes, rpeValue);
         } else if (this.currentWorkout) {
-          this.updateWorkoutNotes(this.currentWorkout.id, notes);
-          this.currentWorkout.notes = notes;
+          this.updateWorkoutNotes(this.currentWorkout.id, notes, rpeValue);
         }
         this.closeAllModals();
         if (this.currentWorkout && !workoutId) {
@@ -749,6 +814,7 @@
       openNotesModal(id) {
           const workout = this.getHistory().find(w => w.id === id);
           if (!workout) return;
+          populateRpeSelect(this.els.rpeSelect, 'emom', workout.rpe || null);
           this.els.workoutNotes.value = workout.notes || '';
           this.els.notesModal.setAttribute('data-workout-id', id);
           this.els.notesModal.classList.add('active');
@@ -763,8 +829,10 @@
         this.els.completionModal.classList.add('active');
       },
       openNotesFromCompletion() {
+        if (!this.currentWorkout) return;
         this.closeAllModals();
         this.els.workoutNotes.value = this.currentWorkout?.notes || '';
+        populateRpeSelect(this.els.rpeSelect, 'emom', this.currentWorkout?.rpe || null);
         this.els.notesModal.setAttribute('data-workout-id', this.currentWorkout.id);
         this.els.notesModal.classList.add('active');
       },
@@ -825,7 +893,7 @@
       },
       
       cacheDOMElements() {
-        const ids = ['app', 'timer', 'prep', 'status', 'progress', 'workInput', 'restInput', 'cyclesInput', 'startBtn', 'pauseBtn', 'resumeBtn', 'resetBtn', 'tabs-nav', 'timer-tab', 'presets-tab', 'history-tab', 'presetsContainer', 'addPresetBtn', 'quick', 'presetsList', 'historyList', 'totalWorkouts', 'totalCycles', 'clearHistoryBtn', 'exportHistoryBtn', 'presetModal', 'presetModalTitle', 'presetName', 'presetWork', 'presetRest', 'presetCycles', 'savePreset', 'notesModal', 'workoutNotes', 'skipNotes', 'saveNotes', 'completionModal', 'completionStats', 'shareResult', 'addNotesBtn', 'toggleWorkoutViewBtn'];
+        const ids = ['app', 'timer', 'prep', 'status', 'progress', 'workInput', 'restInput', 'cyclesInput', 'startBtn', 'pauseBtn', 'resumeBtn', 'resetBtn', 'tabs-nav', 'timer-tab', 'presets-tab', 'history-tab', 'presetsContainer', 'addPresetBtn', 'quick', 'presetsList', 'historyList', 'totalWorkouts', 'totalCycles', 'clearHistoryBtn', 'exportHistoryBtn', 'presetModal', 'presetModalTitle', 'presetName', 'presetWork', 'presetRest', 'presetCycles', 'savePreset', 'notesModal', 'rpeSelect', 'workoutNotes', 'skipNotes', 'saveNotes', 'completionModal', 'completionStats', 'shareResult', 'addNotesBtn', 'toggleWorkoutViewBtn'];
         ids.forEach(id => this.els[id] = document.getElementById(`tabata_${id}`));
         this.els.tabBtns = Array.from(document.querySelectorAll('#tabata_tabs-nav .tab-btn'));
         this.els.tabContents = Array.from(document.querySelectorAll('#tabata_app .tab-content'));
@@ -840,6 +908,7 @@
         this.els.workoutPauseBtn = document.getElementById('workoutPauseBtn');
         this.els.workoutProgress = document.getElementById('workoutProgress');
         this.els.workoutStatus = document.getElementById('workoutStatus');
+        populateRpeSelect(this.els.rpeSelect, 'tabata');
       },
 
       setupEventListeners() {
@@ -917,6 +986,7 @@
       updateLanguage() {
         this.updateUI();
         this.renderCustomPresets();
+        populateRpeSelect(this.els.rpeSelect, 'tabata');
         this.loadHistory();
       },
 
@@ -1134,17 +1204,24 @@
         releaseWakeLock();
         
         this.currentWorkout = {
-          id: Date.now(), date: new Date().toISOString(), cycles: this.totalCycles, work: this.workTime,
-          rest: this.restTime, totalTime: this.totalCycles * (this.workTime + this.restTime)
+          id: Date.now(),
+          date: new Date().toISOString(),
+          cycles: this.totalCycles,
+          work: this.workTime,
+          rest: this.restTime,
+          totalTime: this.totalCycles * (this.workTime + this.restTime),
+          notes: '',
+          rpe: null
         };
-        
+
         this.els.startBtn.disabled = false;
         this.els.pauseBtn.disabled = true;
         this.els.resumeBtn.disabled = true;
-        
+
+        populateRpeSelect(this.els.rpeSelect, 'tabata', null);
+        this.els.workoutNotes.value = '';
+        this.els.notesModal.setAttribute('data-workout-id', '');
         setTimeout(() => {
-          this.els.workoutNotes.value = '';
-          this.els.notesModal.setAttribute('data-workout-id', '');
           this.els.notesModal.classList.add('active');
         }, 1000);
       },
@@ -1301,11 +1378,13 @@
         this.els.historyList.innerHTML = this.history.map(w => {
           const date = new Date(w.date);
           const duration = Math.floor(w.totalTime / 60);
+          const rpeText = getRpeText('tabata', w.rpe);
           return `
           <div class="history-item">
             <div class="history-date">${date.toLocaleDateString()} • ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             <div class="history-performance">${w.cycles} ${t('cycles')} • ${w.work}s/${w.rest}s</div>
             <div class="history-details">${duration}min workout</div>
+            ${rpeText ? `<div class="history-notes">${t('history_rpe_entry', { rpe: rpeText })}</div>` : ''}
             ${w.notes ? `<div class="history-notes">"${w.notes}"</div>` : ''}
             <div class="history-actions">
               <button class="history-btn edit" data-action="edit-history" data-id="${w.id}">${t('edit')}</button>
@@ -1318,21 +1397,26 @@
       exportHistory() {
         const history = this.history;
         if (history.length === 0) return;
-        const head = ['date', 'workSeconds', 'restSeconds', 'completedCycles', 'totalTimeSeconds', 'notes'];
-        const rows = history.map(w => [
-          new Date(w.date).toISOString(),
-          w.work,
-          w.rest,
-          w.cycles,
-          w.totalTime,
-          (w.notes || '').replace(/[,\n"]/g, ' ')
-        ]);
+        const head = ['date', 'workSeconds', 'restSeconds', 'completedCycles', 'totalTimeSeconds', 'rpe', 'notes'];
+        const rows = history.map(w => {
+          const rpeText = getRpeText('tabata', w.rpe);
+          return [
+            new Date(w.date).toISOString(),
+            w.work,
+            w.rest,
+            w.cycles,
+            w.totalTime,
+            (rpeText || '').replace(/[,\n"]/g, ' '),
+            (w.notes || '').replace(/[,\n"]/g, ' ')
+          ];
+        });
         const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
         downloadCSV(csv, 'tabata_history.csv');
       },
-      saveWorkout(notes = '') {
+      saveWorkout(notes = '', rpe = null) {
         if (!this.currentWorkout) return;
         this.currentWorkout.notes = notes;
+        this.currentWorkout.rpe = rpe || null;
         this.history.unshift(this.currentWorkout);
         if (this.history.length > 50) this.history.pop();
         localStorage.setItem('tabata_history', JSON.stringify(this.history));
@@ -1354,34 +1438,45 @@
       // Modals
       closeAllModals() {
         document.querySelectorAll('#tabata_presetModal, #tabata_notesModal, #tabata_completionModal').forEach(m => m.classList.remove('active'));
+        if (this.els.notesModal) {
+          this.els.notesModal.setAttribute('data-workout-id', '');
+        }
       },
       handleSkipNotes() {
         this.closeAllModals();
         if (this.currentWorkout) {
-          this.saveWorkout('');
+          this.saveWorkout('', null);
           this.showCompletionModal();
         }
       },
       handleSaveNotes() {
         const notes = this.els.workoutNotes.value.trim();
+        const rpeValue = this.els.rpeSelect.value || null;
         const workoutId = parseInt(this.els.notesModal.getAttribute('data-workout-id'));
 
         if (workoutId) {
           const workout = this.history.find(w => w.id === workoutId);
           if (workout) {
             workout.notes = notes;
+            workout.rpe = rpeValue;
             localStorage.setItem('tabata_history', JSON.stringify(this.history));
+            if (this.currentWorkout && this.currentWorkout.id === workoutId) {
+              this.currentWorkout.notes = notes;
+              this.currentWorkout.rpe = rpeValue;
+            }
           }
           this.loadHistory();
+          this.closeAllModals();
         } else if (this.currentWorkout) {
-          this.saveWorkout(notes);
+          this.closeAllModals();
+          this.saveWorkout(notes, rpeValue);
           this.showCompletionModal();
         }
-        this.closeAllModals();
       },
       openNotesModal(id) {
         const workout = this.history.find(w => w.id === id);
         if (!workout) return;
+        populateRpeSelect(this.els.rpeSelect, 'tabata', workout.rpe || null);
         this.els.workoutNotes.value = workout.notes || '';
         this.els.notesModal.setAttribute('data-workout-id', id);
         this.els.notesModal.classList.add('active');
@@ -1452,7 +1547,7 @@
       },
       
       cacheDOMElements() {
-        const ids = ['app', 'timeCapInput', 'status', 'prep', 'timer', 'startBtn', 'stopBtn', 'pauseBtn', 'resumeBtn', 'lapBtn', 'resetBtn', 'lapsList', 'presetsContainer', 'addPresetBtn', 'tabs-nav', 'timer-tab', 'presets-tab', 'history-tab', 'presetsList', 'historyList', 'totalWorkouts', 'totalLaps', 'clearHistoryBtn', 'exportHistoryBtn', 'presetModal', 'presetModalTitle', 'presetName', 'presetTimeCap', 'savePreset', 'notesModal', 'workoutNotes', 'skipNotes', 'saveNotes', 'completionModal', 'completionStats', 'shareResult', 'addNotesBtn', 'toggleWorkoutViewBtn'];
+        const ids = ['app', 'timeCapInput', 'status', 'prep', 'timer', 'startBtn', 'stopBtn', 'pauseBtn', 'resumeBtn', 'lapBtn', 'resetBtn', 'lapsList', 'presetsContainer', 'addPresetBtn', 'tabs-nav', 'timer-tab', 'presets-tab', 'history-tab', 'presetsList', 'historyList', 'totalWorkouts', 'totalLaps', 'clearHistoryBtn', 'exportHistoryBtn', 'presetModal', 'presetModalTitle', 'presetName', 'presetTimeCap', 'savePreset', 'notesModal', 'rpeSelect', 'workoutNotes', 'skipNotes', 'saveNotes', 'completionModal', 'completionStats', 'shareResult', 'addNotesBtn', 'toggleWorkoutViewBtn'];
         ids.forEach(id => this.els[id] = document.getElementById(`fortime_${id}`));
         this.els.tabBtns = Array.from(document.querySelectorAll('#fortime_tabs-nav .tab-btn'));
         this.els.tabContents = Array.from(document.querySelectorAll('#fortime_app .tab-content'));
@@ -1467,6 +1562,7 @@
         this.els.workoutPauseBtn = document.getElementById('workoutPauseBtn');
         this.els.workoutLapBtn = document.getElementById('workoutLapBtn');
         this.els.workoutLapsList = document.getElementById('workoutLapsList');
+        populateRpeSelect(this.els.rpeSelect, 'fortime');
       },
 
       setupEventListeners() {
@@ -1584,6 +1680,7 @@
       updateLanguage() {
         this.updateUI();
         this.renderPresets();
+        populateRpeSelect(this.els.rpeSelect, 'fortime');
         this.loadHistory();
       },
 
@@ -1797,6 +1894,11 @@
         this.setStatus('workout_complete_status', 'completed');
         victoryBells();
         this.saveWorkout({ finalTime: this.elapsedTime, timeCap: this.timeCap, laps: this.laps });
+        if (this.currentWorkout) {
+          this.els.workoutNotes.value = this.currentWorkout.notes || '';
+          populateRpeSelect(this.els.rpeSelect, 'fortime', this.currentWorkout.rpe || null);
+          this.els.notesModal.setAttribute('data-workout-id', '');
+        }
         setTimeout(() => this.els.notesModal.classList.add('active'), 1000);
       },
       
@@ -1891,6 +1993,7 @@
         }
         this.els.historyList.innerHTML = history.map(w => {
           const date = new Date(w.date);
+          const rpeText = getRpeText('fortime', w.rpe);
           return `
           <div class="history-item">
             <div class="history-date">${date.toLocaleDateString()} • ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
@@ -1903,6 +2006,7 @@
                 </ul>
               </div>
             ` : ''}
+            ${rpeText ? `<div class="history-notes">${t('history_rpe_entry', { rpe: rpeText })}</div>` : ''}
             ${w.notes ? `<div class="history-notes">"${w.notes}"</div>` : ''}
             <div class="history-actions">
               <button class="history-btn edit" data-action="edit-history" data-id="${w.id}">${t('edit')}</button>
@@ -1915,15 +2019,19 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'finalTime', 'timeCapMinutes', 'lapsCount', 'laps', 'notes'];
-        const rows = history.map(w => [
-          new Date(w.date).toISOString(),
-          this.formatTime(w.finalTime),
-          w.timeCap ? w.timeCap / 60000 : '',
-          w.laps.length,
-          w.laps.map(l => this.formatTime(l)).join('; '),
-          (w.notes || '').replace(/[,\n"]/g, ' ')
-        ]);
+        const head = ['date', 'finalTime', 'timeCapMinutes', 'lapsCount', 'laps', 'rpe', 'notes'];
+        const rows = history.map(w => {
+          const rpeText = getRpeText('fortime', w.rpe);
+          return [
+            new Date(w.date).toISOString(),
+            this.formatTime(w.finalTime),
+            w.timeCap ? w.timeCap / 60000 : '',
+            w.laps.length,
+            w.laps.map(l => this.formatTime(l)).join('; '),
+            (rpeText || '').replace(/[,\n"]/g, ' '),
+            (w.notes || '').replace(/[,\n"]/g, ' ')
+          ];
+        });
         const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
         downloadCSV(csv, 'fortime_history.csv');
       },
@@ -1933,8 +2041,8 @@
           this.loadHistory();
         }
       },
-      saveWorkout(data, notes = '') {
-        const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes };
+      saveWorkout(data, notes = '', rpe = null) {
+        const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes, rpe };
         let history = this.getHistory();
         history.unshift(workout);
         if (history.length > 50) history.pop();
@@ -1942,13 +2050,18 @@
         this.currentWorkout = workout;
         this.loadHistory();
       },
-      updateWorkoutNotes(id, notes) {
+      updateWorkoutNotes(id, notes, rpe = null) {
         let history = this.getHistory();
         const workout = history.find(w => w.id === id);
         if (workout) {
           workout.notes = notes;
+          workout.rpe = rpe || null;
           this.saveHistory(history);
           this.loadHistory();
+        }
+        if (this.currentWorkout && this.currentWorkout.id === id) {
+          this.currentWorkout.notes = notes;
+          this.currentWorkout.rpe = rpe || null;
         }
       },
       deleteWorkout(id) {
@@ -1961,6 +2074,9 @@
       // Modals
       closeAllModals() {
         document.querySelectorAll('#fortime_presetModal, #fortime_notesModal, #fortime_completionModal').forEach(m => m.classList.remove('active'));
+        if (this.els.notesModal) {
+          this.els.notesModal.setAttribute('data-workout-id', '');
+        }
       },
       handleSkipNotes() {
         this.closeAllModals();
@@ -1968,12 +2084,12 @@
       },
       handleSaveNotes() {
         const notes = this.els.workoutNotes.value.trim();
+        const rpeValue = this.els.rpeSelect.value || null;
         const workoutId = parseInt(this.els.notesModal.getAttribute('data-workout-id'));
         if (workoutId) {
-          this.updateWorkoutNotes(workoutId, notes);
+          this.updateWorkoutNotes(workoutId, notes, rpeValue);
         } else if (this.currentWorkout) {
-          this.updateWorkoutNotes(this.currentWorkout.id, notes);
-          this.currentWorkout.notes = notes;
+          this.updateWorkoutNotes(this.currentWorkout.id, notes, rpeValue);
         }
         this.closeAllModals();
         if (this.currentWorkout && !workoutId) {
@@ -1983,6 +2099,7 @@
       openNotesModal(id) {
           const workout = this.getHistory().find(w => w.id === id);
           if (!workout) return;
+          populateRpeSelect(this.els.rpeSelect, 'fortime', workout.rpe || null);
           this.els.workoutNotes.value = workout.notes || '';
           this.els.notesModal.setAttribute('data-workout-id', id);
           this.els.notesModal.classList.add('active');
@@ -1997,8 +2114,10 @@
         this.els.completionModal.classList.add('active');
       },
       openNotesFromCompletion() {
+        if (!this.currentWorkout) return;
         this.closeAllModals();
         this.els.workoutNotes.value = this.currentWorkout?.notes || '';
+        populateRpeSelect(this.els.rpeSelect, 'fortime', this.currentWorkout?.rpe || null);
         this.els.notesModal.setAttribute('data-workout-id', this.currentWorkout.id);
         this.els.notesModal.classList.add('active');
       },
@@ -2053,7 +2172,7 @@
       },
       
       cacheDOMElements() {
-        const ids = ['app', 'durationInput', 'status', 'prep', 'timer', 'startBtn', 'pauseBtn', 'resumeBtn', 'roundBtn', 'resetBtn', 'rounds', 'presetsContainer', 'addPresetBtn', 'tabs-nav', 'timer-tab', 'presets-tab', 'history-tab', 'presetsList', 'historyList', 'totalWorkouts', 'totalRounds', 'clearHistoryBtn', 'exportHistoryBtn', 'presetModal', 'presetModalTitle', 'presetName', 'presetDuration', 'savePreset', 'notesModal', 'workoutNotes', 'skipNotes', 'saveNotes', 'completionModal', 'completionStats', 'shareResult', 'addNotesBtn', 'toggleWorkoutViewBtn'];
+        const ids = ['app', 'durationInput', 'status', 'prep', 'timer', 'startBtn', 'pauseBtn', 'resumeBtn', 'roundBtn', 'resetBtn', 'rounds', 'presetsContainer', 'addPresetBtn', 'tabs-nav', 'timer-tab', 'presets-tab', 'history-tab', 'presetsList', 'historyList', 'totalWorkouts', 'totalRounds', 'clearHistoryBtn', 'exportHistoryBtn', 'presetModal', 'presetModalTitle', 'presetName', 'presetDuration', 'savePreset', 'notesModal', 'rpeSelect', 'workoutNotes', 'skipNotes', 'saveNotes', 'completionModal', 'completionStats', 'shareResult', 'addNotesBtn', 'toggleWorkoutViewBtn'];
         ids.forEach(id => this.els[id] = document.getElementById(`amrap_${id}`));
         this.els.tabBtns = Array.from(document.querySelectorAll('#amrap_tabs-nav .tab-btn'));
         this.els.tabContents = Array.from(document.querySelectorAll('#amrap_app .tab-content'));
@@ -2068,6 +2187,7 @@
         this.els.workoutPauseBtn = document.getElementById('workoutPauseBtn');
         this.els.workoutLapBtn = document.getElementById('workoutLapBtn'); // Reused for rounds
         this.els.workoutProgress = document.getElementById('workoutProgress');
+        populateRpeSelect(this.els.rpeSelect, 'amrap');
       },
 
       setupEventListeners() {
@@ -2124,6 +2244,7 @@
       updateLanguage() {
         this.updateUI();
         this.renderPresets();
+        populateRpeSelect(this.els.rpeSelect, 'amrap');
         this.loadHistory();
       },
 
@@ -2320,6 +2441,11 @@
         victoryBells();
         this.saveWorkout({ rounds: this.rounds, duration: this.duration });
         this.closeWorkoutView();
+        if (this.currentWorkout) {
+          this.els.workoutNotes.value = this.currentWorkout.notes || '';
+          populateRpeSelect(this.els.rpeSelect, 'amrap', this.currentWorkout.rpe || null);
+          this.els.notesModal.setAttribute('data-workout-id', '');
+        }
         setTimeout(() => this.els.notesModal.classList.add('active'), 1000);
       },
 
@@ -2465,11 +2591,13 @@
         }
         this.els.historyList.innerHTML = history.map(w => {
           const date = new Date(w.date);
+          const rpeText = getRpeText('amrap', w.rpe);
           return `
           <div class="history-item">
             <div class="history-date">${date.toLocaleDateString()} • ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             <div class="history-performance">${w.rounds} Rounds</div>
             <div class="history-details">${w.duration / 60000}min AMRAP</div>
+            ${rpeText ? `<div class="history-notes">${t('history_rpe_entry', { rpe: rpeText })}</div>` : ''}
             ${w.notes ? `<div class="history-notes">"${w.notes}"</div>` : ''}
             <div class="history-actions">
               <button class="history-btn edit" data-action="edit-history" data-id="${w.id}">${t('edit')}</button>
@@ -2482,13 +2610,17 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'durationMinutes', 'completedRounds', 'notes'];
-        const rows = history.map(w => [
-          new Date(w.date).toISOString(),
-          w.duration / 60000,
-          w.rounds,
-          (w.notes || '').replace(/[,\n"]/g, ' ')
-        ]);
+        const head = ['date', 'durationMinutes', 'completedRounds', 'rpe', 'notes'];
+        const rows = history.map(w => {
+          const rpeText = getRpeText('amrap', w.rpe);
+          return [
+            new Date(w.date).toISOString(),
+            w.duration / 60000,
+            w.rounds,
+            (rpeText || '').replace(/[,\n"]/g, ' '),
+            (w.notes || '').replace(/[,\n"]/g, ' ')
+          ];
+        });
         const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
         downloadCSV(csv, 'amrap_history.csv');
       },
@@ -2498,8 +2630,8 @@
           this.loadHistory();
         }
       },
-      saveWorkout(data, notes = '') {
-        const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes };
+      saveWorkout(data, notes = '', rpe = null) {
+        const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes, rpe };
         let history = this.getHistory();
         history.unshift(workout);
         if (history.length > 50) history.pop();
@@ -2507,13 +2639,18 @@
         this.currentWorkout = workout;
         this.loadHistory();
       },
-      updateWorkoutNotes(id, notes) {
+      updateWorkoutNotes(id, notes, rpe = null) {
         let history = this.getHistory();
         const workout = history.find(w => w.id === id);
         if (workout) {
           workout.notes = notes;
+          workout.rpe = rpe || null;
           this.saveHistory(history);
           this.loadHistory();
+        }
+        if (this.currentWorkout && this.currentWorkout.id === id) {
+          this.currentWorkout.notes = notes;
+          this.currentWorkout.rpe = rpe || null;
         }
       },
       deleteWorkout(id) {
@@ -2526,6 +2663,9 @@
       // Modals
       closeAllModals() {
         document.querySelectorAll('#amrap_presetModal, #amrap_notesModal, #amrap_completionModal').forEach(m => m.classList.remove('active'));
+        if (this.els.notesModal) {
+          this.els.notesModal.setAttribute('data-workout-id', '');
+        }
       },
       handleSkipNotes() {
         this.closeAllModals();
@@ -2533,12 +2673,12 @@
       },
       handleSaveNotes() {
         const notes = this.els.workoutNotes.value.trim();
+        const rpeValue = this.els.rpeSelect.value || null;
         const workoutId = parseInt(this.els.notesModal.getAttribute('data-workout-id'));
         if (workoutId) {
-          this.updateWorkoutNotes(workoutId, notes);
+          this.updateWorkoutNotes(workoutId, notes, rpeValue);
         } else if (this.currentWorkout) {
-          this.updateWorkoutNotes(this.currentWorkout.id, notes);
-          this.currentWorkout.notes = notes;
+          this.updateWorkoutNotes(this.currentWorkout.id, notes, rpeValue);
         }
         this.closeAllModals();
         if (this.currentWorkout && !workoutId) {
@@ -2548,6 +2688,7 @@
       openNotesModal(id) {
           const workout = this.getHistory().find(w => w.id === id);
           if (!workout) return;
+          populateRpeSelect(this.els.rpeSelect, 'amrap', workout.rpe || null);
           this.els.workoutNotes.value = workout.notes || '';
           this.els.notesModal.setAttribute('data-workout-id', id);
           this.els.notesModal.classList.add('active');
@@ -2561,8 +2702,10 @@
         this.els.completionModal.classList.add('active');
       },
       openNotesFromCompletion() {
+        if (!this.currentWorkout) return;
         this.closeAllModals();
         this.els.workoutNotes.value = this.currentWorkout?.notes || '';
+        populateRpeSelect(this.els.rpeSelect, 'amrap', this.currentWorkout?.rpe || null);
         this.els.notesModal.setAttribute('data-workout-id', this.currentWorkout.id);
         this.els.notesModal.classList.add('active');
       },

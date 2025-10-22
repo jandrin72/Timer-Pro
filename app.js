@@ -187,24 +187,23 @@
       setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 600);
     }
     function victoryBells() {
-      let t = 0;
-      for (let i = 0; i < 3; i++) {
+      const bellFreq = 1200;
+      const bellDurationMs = 150;
+      const bellGapMs = 180;
+      const sequenceGapMs = 800;
+
+      function playBellHit(delayMs) {
         setTimeout(() => {
-          playSiren({ startFreq: 600, endFreq: 1200, duration: 0.25, type: 'square', volume: 1.0 });
-          playSiren({ startFreq: 700, endFreq: 1400, duration: 0.25, type: 'sawtooth', volume: 0.9 });
-        }, t);
-        t += 280;
-        setTimeout(() => {
-          playSiren({ startFreq: 1200, endFreq: 600, duration: 0.25, type: 'square', volume: 1.0 });
-          playSiren({ startFreq: 1400, endFreq: 700, duration: 0.25, type: 'sawtooth', volume: 0.9 });
-        }, t);
-        t += 280;
+          playTone({ freq: bellFreq, duration: bellDurationMs / 1000, type: 'sine', volume: 1.0 });
+        }, delayMs);
       }
-      setTimeout(() => {
-        playSiren({ startFreq: 400, endFreq: 2000, duration: 0.8, type: 'square', volume: 1.0 });
-        playSiren({ startFreq: 500, endFreq: 1800, duration: 0.8, type: 'sawtooth', volume: 0.95 });
-        setTimeout(() => playTone({ freq: 2400, duration: 0.4, type: 'square', volume: 0.8 }), 200);
-      }, t + 200);
+
+      for (let sequence = 0; sequence < 3; sequence++) {
+        const sequenceDelay = sequence * sequenceGapMs;
+        playBellHit(sequenceDelay);
+        playBellHit(sequenceDelay + bellGapMs);
+        playBellHit(sequenceDelay + bellGapMs * 2);
+      }
     }
     
     // === WAKE LOCK ===

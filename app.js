@@ -187,6 +187,23 @@
       setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 600);
     }
     function victoryBells() {
+      const bellFreq = 1200;
+      const bellDurationMs = 150;
+      const bellGapMs = 180;
+      const sequenceGapMs = 800;
+
+      function playBellHit(delayMs) {
+        setTimeout(() => {
+          playTone({ freq: bellFreq, duration: bellDurationMs / 1000, type: 'sine', volume: 1.0 });
+        }, delayMs);
+      }
+
+      for (let sequence = 0; sequence < 3; sequence++) {
+        const sequenceDelay = sequence * sequenceGapMs;
+        playBellHit(sequenceDelay);
+        playBellHit(sequenceDelay + bellGapMs);
+        playBellHit(sequenceDelay + bellGapMs * 2);
+      }
       playTone({ freq: 880, duration: 0.22, type: 'triangle', volume: 0.95 });
       setTimeout(() => playTone({ freq: 1175, duration: 0.32, type: 'triangle', volume: 0.9 }), 170);
       setTimeout(() => playTone({ freq: 1568, duration: 0.38, type: 'triangle', volume: 0.85 }), 330);

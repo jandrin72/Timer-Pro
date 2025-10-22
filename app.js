@@ -194,6 +194,8 @@
         playTone({ freq: 1046, duration: 0.6, type: 'sine', volume: 0.75 });
         playTone({ freq: 1568, duration: 0.6, type: 'sine', volume: 0.55 });
       }, 580);
+      playTone({ freq: 1046, duration: 0.8, type: 'sine', volume: 0.8 });
+      setTimeout(() => playTone({ freq: 1318, duration: 0.6, type: 'sine', volume: 0.5 }), 150);
     }
     
     // === WAKE LOCK ===

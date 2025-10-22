@@ -204,6 +204,15 @@
         playBellHit(sequenceDelay + bellGapMs);
         playBellHit(sequenceDelay + bellGapMs * 2);
       }
+      playTone({ freq: 880, duration: 0.22, type: 'triangle', volume: 0.95 });
+      setTimeout(() => playTone({ freq: 1175, duration: 0.32, type: 'triangle', volume: 0.9 }), 170);
+      setTimeout(() => playTone({ freq: 1568, duration: 0.38, type: 'triangle', volume: 0.85 }), 330);
+      setTimeout(() => {
+        playTone({ freq: 1046, duration: 0.6, type: 'sine', volume: 0.75 });
+        playTone({ freq: 1568, duration: 0.6, type: 'sine', volume: 0.55 });
+      }, 580);
+      playTone({ freq: 1046, duration: 0.8, type: 'sine', volume: 0.8 });
+      setTimeout(() => playTone({ freq: 1318, duration: 0.6, type: 'sine', volume: 0.5 }), 150);
     }
     
     // === WAKE LOCK ===

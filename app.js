@@ -2696,8 +2696,8 @@
       showCompletionModal() {
         if (!this.currentWorkout) return;
         this.els.completionStats.innerHTML = `
-          <div class="completion-stat"><strong>${t('completed_rounds')}:</strong> ${this.currentWorkout.rounds}</div>
-          <div class="completion-stat"><strong>${t('workout_duration')}:</strong> ${this.currentWorkout.duration/60000} min</div>
+          <div class="completion-stat"><strong>${t('completed_rounds')}</strong> ${this.currentWorkout.rounds}</div>
+          <div class="completion-stat"><strong>${t('workout_duration')}</strong> ${this.currentWorkout.duration/60000} min</div>
           `;
         this.els.completionModal.classList.add('active');
       },

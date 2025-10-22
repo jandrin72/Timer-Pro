@@ -187,24 +187,13 @@
       setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 600);
     }
     function victoryBells() {
-      let t = 0;
-      for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
-          playSiren({ startFreq: 600, endFreq: 1200, duration: 0.25, type: 'square', volume: 1.0 });
-          playSiren({ startFreq: 700, endFreq: 1400, duration: 0.25, type: 'sawtooth', volume: 0.9 });
-        }, t);
-        t += 280;
-        setTimeout(() => {
-          playSiren({ startFreq: 1200, endFreq: 600, duration: 0.25, type: 'square', volume: 1.0 });
-          playSiren({ startFreq: 1400, endFreq: 700, duration: 0.25, type: 'sawtooth', volume: 0.9 });
-        }, t);
-        t += 280;
-      }
+      playTone({ freq: 880, duration: 0.22, type: 'triangle', volume: 0.95 });
+      setTimeout(() => playTone({ freq: 1175, duration: 0.32, type: 'triangle', volume: 0.9 }), 170);
+      setTimeout(() => playTone({ freq: 1568, duration: 0.38, type: 'triangle', volume: 0.85 }), 330);
       setTimeout(() => {
-        playSiren({ startFreq: 400, endFreq: 2000, duration: 0.8, type: 'square', volume: 1.0 });
-        playSiren({ startFreq: 500, endFreq: 1800, duration: 0.8, type: 'sawtooth', volume: 0.95 });
-        setTimeout(() => playTone({ freq: 2400, duration: 0.4, type: 'square', volume: 0.8 }), 200);
-      }, t + 200);
+        playTone({ freq: 1046, duration: 0.6, type: 'sine', volume: 0.75 });
+        playTone({ freq: 1568, duration: 0.6, type: 'sine', volume: 0.55 });
+      }, 580);
     }
     
     // === WAKE LOCK ===

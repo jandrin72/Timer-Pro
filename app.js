@@ -188,28 +188,32 @@
     }
     let victoryAudio = null;
     function victoryBells() {
-      try {
-        if (!victoryAudio) {
-          const src = new URL('src/sounds/final fanfare.wav', window.location.href).toString();
-          victoryAudio = new Audio(src);
-        } else {
-          victoryAudio.pause();
-          victoryAudio.currentTime = 0;
-        }
+      const bellFreq = 1200;
+      const bellDurationMs = 150;
+      const bellGapMs = 180;
+      const sequenceGapMs = 800;
 
-        if (typeof AudioUtil !== 'undefined' && AudioUtil.getVolume) {
-          victoryAudio.volume = AudioUtil.getVolume();
-        } else {
-          victoryAudio.volume = 1.0;
-        }
-
-        const playPromise = victoryAudio.play();
-        if (playPromise && typeof playPromise.catch === 'function') {
-          playPromise.catch(e => console.warn('Error reproduciendo sonido de victoria:', e));
-        }
-      } catch (e) {
-        console.warn('No se pudo iniciar el sonido de victoria:', e);
+      function playBellHit(delayMs) {
+        setTimeout(() => {
+          playTone({ freq: bellFreq, duration: bellDurationMs / 1000, type: 'sine', volume: 1.0 });
+        }, delayMs);
       }
+
+      for (let sequence = 0; sequence < 3; sequence++) {
+        const sequenceDelay = sequence * sequenceGapMs;
+        playBellHit(sequenceDelay);
+        playBellHit(sequenceDelay + bellGapMs);
+        playBellHit(sequenceDelay + bellGapMs * 2);
+      }
+      playTone({ freq: 880, duration: 0.22, type: 'triangle', volume: 0.95 });
+      setTimeout(() => playTone({ freq: 1175, duration: 0.32, type: 'triangle', volume: 0.9 }), 170);
+      setTimeout(() => playTone({ freq: 1568, duration: 0.38, type: 'triangle', volume: 0.85 }), 330);
+      setTimeout(() => {
+        playTone({ freq: 1046, duration: 0.6, type: 'sine', volume: 0.75 });
+        playTone({ freq: 1568, duration: 0.6, type: 'sine', volume: 0.55 });
+      }, 580);
+      playTone({ freq: 1046, duration: 0.8, type: 'sine', volume: 0.8 });
+      setTimeout(() => playTone({ freq: 1318, duration: 0.6, type: 'sine', volume: 0.5 }), 150);
     }
     
     // === WAKE LOCK ===

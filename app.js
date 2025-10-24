@@ -186,6 +186,7 @@
       setTimeout(() => playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 }), 300);
       setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 600);
     }
+    let victoryAudio = null;
     function victoryBells() {
       const bellFreq = 1200;
       const bellDurationMs = 150;
@@ -535,11 +536,12 @@
         const newCycles = Math.floor(elapsedMs / cycleDurationMs);
         if (newCycles > this.cycles) {
           this.cycles = newCycles;
-          ring();
-          if (this.targetCycles && this.cycles >= this.targetCycles) {
+          const reachedTarget = this.targetCycles && this.cycles >= this.targetCycles;
+          if (reachedTarget) {
             this.completeWorkout();
             return;
           }
+          ring();
         }
         
         const elapsedInCycle = elapsedMs % cycleDurationMs;

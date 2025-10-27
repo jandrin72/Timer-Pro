@@ -186,25 +186,24 @@
       setTimeout(() => playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 }), 300);
       setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 600);
     }
+    let victoryAudio = null;
     function victoryBells() {
-      let t = 0;
-      for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
-          playSiren({ startFreq: 600, endFreq: 1200, duration: 0.25, type: 'square', volume: 1.0 });
-          playSiren({ startFreq: 700, endFreq: 1400, duration: 0.25, type: 'sawtooth', volume: 0.9 });
-        }, t);
-        t += 280;
-        setTimeout(() => {
-          playSiren({ startFreq: 1200, endFreq: 600, duration: 0.25, type: 'square', volume: 1.0 });
-          playSiren({ startFreq: 1400, endFreq: 700, duration: 0.25, type: 'sawtooth', volume: 0.9 });
-        }, t);
-        t += 280;
+      if (!victoryAudio) {
+        victoryAudio = new Audio('src/sounds/final fanfare.wav');
+        victoryAudio.preload = 'auto';
+      } else {
+        try {
+          victoryAudio.pause();
+        } catch (e) { /* ignore pause errors */ }
+        victoryAudio.currentTime = 0;
       }
-      setTimeout(() => {
-        playSiren({ startFreq: 400, endFreq: 2000, duration: 0.8, type: 'square', volume: 1.0 });
-        playSiren({ startFreq: 500, endFreq: 1800, duration: 0.8, type: 'sawtooth', volume: 0.95 });
-        setTimeout(() => playTone({ freq: 2400, duration: 0.4, type: 'square', volume: 0.8 }), 200);
-      }, t + 200);
+
+      const requestedVolume = (typeof AudioUtil !== 'undefined' && typeof AudioUtil.getVolume === 'function')
+        ? AudioUtil.getVolume()
+        : 1.0;
+      victoryAudio.volume = Math.max(0, Math.min(1, requestedVolume || 1.0));
+
+      victoryAudio.play().catch(e => console.warn('Error reproduciendo sonido de victoria:', e));
     }
     
     // === WAKE LOCK ===
@@ -527,11 +526,12 @@
         const newCycles = Math.floor(elapsedMs / cycleDurationMs);
         if (newCycles > this.cycles) {
           this.cycles = newCycles;
-          ring();
-          if (this.targetCycles && this.cycles >= this.targetCycles) {
+          const reachedTarget = this.targetCycles && this.cycles >= this.targetCycles;
+          if (reachedTarget) {
             this.completeWorkout();
             return;
           }
+          ring();
         }
         
         const elapsedInCycle = elapsedMs % cycleDurationMs;

@@ -496,13 +496,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1128,11 +1131,13 @@
           if (prep <= 0) {
             clearInterval(this.prepInterval);
             this.prepInterval = null;
-            ring();
             setTimeout(() => {
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1151,47 +1156,59 @@
       
       tick() {
         if (!this.running || this.paused) return;
-        
+
         const elapsedMs = performance.now() - this.startTime - this.pausedDuration;
         const totalCycleDurationMs = (this.workTime + this.restTime) * 1000;
-        
         const newCycle = Math.floor(elapsedMs / totalCycleDurationMs);
-        if(this.currentCycle !== newCycle) {
-            this.currentCycle = newCycle;
-        }
 
-        if(this.currentCycle >= this.totalCycles) {
+        let shouldRing = false;
+
+        if (this.currentCycle !== newCycle) {
+          this.currentCycle = newCycle;
+
+          if (this.currentCycle >= this.totalCycles) {
             this.completeWorkout();
             return;
+          }
         }
 
         const elapsedInCurrentCycleMs = elapsedMs % totalCycleDurationMs;
         const workTimeMs = this.workTime * 1000;
-        let newMode, newRemaining;
-        
+
+        let newMode;
+        let newRemaining;
         if (elapsedInCurrentCycleMs < workTimeMs) {
-            newMode = 'work';
-            newRemaining = this.workTime - Math.floor(elapsedInCurrentCycleMs / 1000);
+          newMode = 'work';
+          newRemaining = this.workTime - Math.floor(elapsedInCurrentCycleMs / 1000);
         } else {
-            newMode = 'rest';
-            const elapsedInRest = elapsedInCurrentCycleMs - workTimeMs;
-            newRemaining = this.restTime - Math.floor(elapsedInRest / 1000);
-        }
-        
-        if (this.mode !== newMode) {
-            this.mode = newMode;
-            ring();
-        }
-        if(this.timeRemaining !== newRemaining) {
-            this.timeRemaining = newRemaining;
-            this.updateUI();
+          newMode = 'rest';
+          const elapsedInRest = elapsedInCurrentCycleMs - workTimeMs;
+          newRemaining = this.restTime - Math.floor(elapsedInRest / 1000);
         }
 
-        if (this.timeRemaining <= 5 && this.timeRemaining > 0 && this.lastAnnouncedSecond !== this.timeRemaining) {
-          beepShort();
-          this.lastAnnouncedSecond = this.timeRemaining;
-        } else if (this.timeRemaining > 5) {
-          this.lastAnnouncedSecond = null;
+        if (this.mode !== newMode) {
+          this.mode = newMode;
+          shouldRing = true;
+        }
+
+        if (this.timeRemaining !== newRemaining) {
+          this.timeRemaining = newRemaining;
+          this.updateUI();
+
+          if (this.timeRemaining <= 5 && this.timeRemaining >= 0) {
+            if (this.lastAnnouncedSecond !== this.timeRemaining) {
+              if (!shouldRing) {
+                beepShort();
+              }
+              this.lastAnnouncedSecond = this.timeRemaining;
+            }
+          } else if (this.timeRemaining > 5) {
+            this.lastAnnouncedSecond = null;
+          }
+        }
+
+        if (shouldRing) {
+          ring();
         }
 
         this.animationFrameId = requestAnimationFrame(() => this.tick());
@@ -1836,13 +1853,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -2394,13 +2414,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;

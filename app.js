@@ -188,32 +188,22 @@
     }
     let victoryAudio = null;
     function victoryBells() {
-      const bellFreq = 1200;
-      const bellDurationMs = 150;
-      const bellGapMs = 180;
-      const sequenceGapMs = 800;
-
-      function playBellHit(delayMs) {
-        setTimeout(() => {
-          playTone({ freq: bellFreq, duration: bellDurationMs / 1000, type: 'sine', volume: 1.0 });
-        }, delayMs);
+      if (!victoryAudio) {
+        victoryAudio = new Audio('src/sounds/final fanfare.wav');
+        victoryAudio.preload = 'auto';
+      } else {
+        try {
+          victoryAudio.pause();
+        } catch (e) { /* ignore pause errors */ }
+        victoryAudio.currentTime = 0;
       }
 
-      for (let sequence = 0; sequence < 3; sequence++) {
-        const sequenceDelay = sequence * sequenceGapMs;
-        playBellHit(sequenceDelay);
-        playBellHit(sequenceDelay + bellGapMs);
-        playBellHit(sequenceDelay + bellGapMs * 2);
-      }
-      playTone({ freq: 880, duration: 0.22, type: 'triangle', volume: 0.95 });
-      setTimeout(() => playTone({ freq: 1175, duration: 0.32, type: 'triangle', volume: 0.9 }), 170);
-      setTimeout(() => playTone({ freq: 1568, duration: 0.38, type: 'triangle', volume: 0.85 }), 330);
-      setTimeout(() => {
-        playTone({ freq: 1046, duration: 0.6, type: 'sine', volume: 0.75 });
-        playTone({ freq: 1568, duration: 0.6, type: 'sine', volume: 0.55 });
-      }, 580);
-      playTone({ freq: 1046, duration: 0.8, type: 'sine', volume: 0.8 });
-      setTimeout(() => playTone({ freq: 1318, duration: 0.6, type: 'sine', volume: 0.5 }), 150);
+      const requestedVolume = (typeof AudioUtil !== 'undefined' && typeof AudioUtil.getVolume === 'function')
+        ? AudioUtil.getVolume()
+        : 1.0;
+      victoryAudio.volume = Math.max(0, Math.min(1, requestedVolume || 1.0));
+
+      victoryAudio.play().catch(e => console.warn('Error reproduciendo sonido de victoria:', e));
     }
     
     // === WAKE LOCK ===

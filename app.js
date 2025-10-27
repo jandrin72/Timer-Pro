@@ -496,13 +496,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1128,11 +1131,13 @@
           if (prep <= 0) {
             clearInterval(this.prepInterval);
             this.prepInterval = null;
-            ring();
             setTimeout(() => {
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1848,13 +1853,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -2406,13 +2414,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;

@@ -201,7 +201,11 @@
       const requestedVolume = (typeof AudioUtil !== 'undefined' && typeof AudioUtil.getVolume === 'function')
         ? AudioUtil.getVolume()
         : 1.0;
-      victoryAudio.volume = Math.max(0, Math.min(1, requestedVolume || 1.0));
+
+      // Boost the victory fanfare relative to other notification tones
+      const victoryVolumeMultiplier = 1.5;
+      const finalVolume = Math.max(0, Math.min(1, (requestedVolume ?? 1.0) * victoryVolumeMultiplier));
+      victoryAudio.volume = finalVolume;
 
       victoryAudio.play().catch(e => console.warn('Error reproduciendo sonido de victoria:', e));
     }

@@ -1138,9 +1138,6 @@
             setTimeout(() => {
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              const targetMode = nextMode || 'work';
-              this.mode = targetMode;
-              this.updateUI();
               ring();
               setTimeout(() => {
                 nextAction();

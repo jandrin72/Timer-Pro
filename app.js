@@ -882,6 +882,7 @@
       running: false, paused: false, prepInterval: null,
       animationFrameId: null, startTime: 0, pauseTime: 0, pausedDuration: 0,
       lastAnnouncedSecond: null, editingPresetIndex: -1,
+      lastModeBeforePause: null,
       currentWorkout: null,
       history: [], customPresets: [], initialized: false,
       workoutViewActive: false,
@@ -1060,12 +1061,13 @@
         this.timeRemaining = this.workTime;
         this.running = true;
         this.paused = false;
+        this.lastModeBeforePause = null;
         this.els.startBtn.disabled = true;
         this.els.pauseBtn.disabled = false;
         this.els.resumeBtn.disabled = true;
         this.els.toggleWorkoutViewBtn.style.display = 'inline-block';
         this.updateUI();
-        this.startPreparation(this.els.prep, this.els.timer, () => {
+        this.startPreparation(this.els.prep, this.els.timer, 'work', () => {
           this.startTiming();
           this.openWorkoutView();
         });
@@ -1078,6 +1080,7 @@
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.animationFrameId = null; this.prepInterval = null;
+        this.lastModeBeforePause = this.mode;
         this.mode = 'paused';
         this.updateUI();
         releaseWakeLock();
@@ -1107,6 +1110,7 @@
         releaseWakeLock();
         this.mode = 'idle';
         this.currentCycle = 0;
+        this.lastModeBeforePause = null;
         this.updateValues();
         this.els.prep.style.display = 'none';
         this.els.timer.style.display = 'block';
@@ -1117,7 +1121,7 @@
         this.els.toggleWorkoutViewBtn.style.display = 'none';
       },
       
-      startPreparation(prepEl, timerEl, nextAction) {
+      startPreparation(prepEl, timerEl, nextMode, nextAction) {
         this.mode = 'prep';
         this.updateUI();
         prepEl.style.display = 'block';
@@ -1304,7 +1308,8 @@
         }
       },
       resumeWithPrep(prepEl, timerEl) {
-        this.startPreparation(prepEl, timerEl, () => this.resume());
+        const targetMode = this.lastModeBeforePause || 'work';
+        this.startPreparation(prepEl, timerEl, targetMode, () => this.resume());
       },
       
       // Presets

@@ -496,13 +496,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -879,6 +882,7 @@
       running: false, paused: false, prepInterval: null,
       animationFrameId: null, startTime: 0, pauseTime: 0, pausedDuration: 0,
       lastAnnouncedSecond: null, editingPresetIndex: -1,
+      lastModeBeforePause: null,
       currentWorkout: null,
       history: [], customPresets: [], initialized: false,
       workoutViewActive: false,
@@ -1057,12 +1061,13 @@
         this.timeRemaining = this.workTime;
         this.running = true;
         this.paused = false;
+        this.lastModeBeforePause = null;
         this.els.startBtn.disabled = true;
         this.els.pauseBtn.disabled = false;
         this.els.resumeBtn.disabled = true;
         this.els.toggleWorkoutViewBtn.style.display = 'inline-block';
         this.updateUI();
-        this.startPreparation(this.els.prep, this.els.timer, () => {
+        this.startPreparation(this.els.prep, this.els.timer, 'work', () => {
           this.startTiming();
           this.openWorkoutView();
         });
@@ -1075,6 +1080,7 @@
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.animationFrameId = null; this.prepInterval = null;
+        this.lastModeBeforePause = this.mode;
         this.mode = 'paused';
         this.updateUI();
         releaseWakeLock();
@@ -1104,6 +1110,7 @@
         releaseWakeLock();
         this.mode = 'idle';
         this.currentCycle = 0;
+        this.lastModeBeforePause = null;
         this.updateValues();
         this.els.prep.style.display = 'none';
         this.els.timer.style.display = 'block';
@@ -1114,7 +1121,7 @@
         this.els.toggleWorkoutViewBtn.style.display = 'none';
       },
       
-      startPreparation(prepEl, timerEl, nextAction) {
+      startPreparation(prepEl, timerEl, nextMode, nextAction) {
         this.mode = 'prep';
         this.updateUI();
         prepEl.style.display = 'block';
@@ -1128,11 +1135,16 @@
           if (prep <= 0) {
             clearInterval(this.prepInterval);
             this.prepInterval = null;
-            ring();
             setTimeout(() => {
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              const targetMode = nextMode || 'work';
+              this.mode = targetMode;
+              this.updateUI();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1151,47 +1163,59 @@
       
       tick() {
         if (!this.running || this.paused) return;
-        
+
         const elapsedMs = performance.now() - this.startTime - this.pausedDuration;
         const totalCycleDurationMs = (this.workTime + this.restTime) * 1000;
-        
         const newCycle = Math.floor(elapsedMs / totalCycleDurationMs);
-        if(this.currentCycle !== newCycle) {
-            this.currentCycle = newCycle;
-        }
 
-        if(this.currentCycle >= this.totalCycles) {
+        let shouldRing = false;
+
+        if (this.currentCycle !== newCycle) {
+          this.currentCycle = newCycle;
+
+          if (this.currentCycle >= this.totalCycles) {
             this.completeWorkout();
             return;
+          }
         }
 
         const elapsedInCurrentCycleMs = elapsedMs % totalCycleDurationMs;
         const workTimeMs = this.workTime * 1000;
-        let newMode, newRemaining;
-        
+
+        let newMode;
+        let newRemaining;
         if (elapsedInCurrentCycleMs < workTimeMs) {
-            newMode = 'work';
-            newRemaining = this.workTime - Math.floor(elapsedInCurrentCycleMs / 1000);
+          newMode = 'work';
+          newRemaining = this.workTime - Math.floor(elapsedInCurrentCycleMs / 1000);
         } else {
-            newMode = 'rest';
-            const elapsedInRest = elapsedInCurrentCycleMs - workTimeMs;
-            newRemaining = this.restTime - Math.floor(elapsedInRest / 1000);
-        }
-        
-        if (this.mode !== newMode) {
-            this.mode = newMode;
-            ring();
-        }
-        if(this.timeRemaining !== newRemaining) {
-            this.timeRemaining = newRemaining;
-            this.updateUI();
+          newMode = 'rest';
+          const elapsedInRest = elapsedInCurrentCycleMs - workTimeMs;
+          newRemaining = this.restTime - Math.floor(elapsedInRest / 1000);
         }
 
-        if (this.timeRemaining <= 5 && this.timeRemaining > 0 && this.lastAnnouncedSecond !== this.timeRemaining) {
-          beepShort();
-          this.lastAnnouncedSecond = this.timeRemaining;
-        } else if (this.timeRemaining > 5) {
-          this.lastAnnouncedSecond = null;
+        if (this.mode !== newMode) {
+          this.mode = newMode;
+          shouldRing = true;
+        }
+
+        if (this.timeRemaining !== newRemaining) {
+          this.timeRemaining = newRemaining;
+          this.updateUI();
+
+          if (this.timeRemaining <= 5 && this.timeRemaining >= 0) {
+            if (this.lastAnnouncedSecond !== this.timeRemaining) {
+              if (!shouldRing) {
+                beepShort();
+              }
+              this.lastAnnouncedSecond = this.timeRemaining;
+            }
+          } else if (this.timeRemaining > 5) {
+            this.lastAnnouncedSecond = null;
+          }
+        }
+
+        if (shouldRing) {
+          ring();
         }
 
         this.animationFrameId = requestAnimationFrame(() => this.tick());
@@ -1287,7 +1311,8 @@
         }
       },
       resumeWithPrep(prepEl, timerEl) {
-        this.startPreparation(prepEl, timerEl, () => this.resume());
+        const targetMode = this.lastModeBeforePause || 'work';
+        this.startPreparation(prepEl, timerEl, targetMode, () => this.resume());
       },
       
       // Presets
@@ -1836,13 +1861,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -2394,13 +2422,16 @@
         this.prepInterval = setInterval(() => {
           prep--;
           if (prep <= 0) {
-            clearInterval(this.prepInterval); this.prepInterval = null;
-            ring();
+            clearInterval(this.prepInterval);
+            this.prepInterval = null;
             setTimeout(() => {
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              nextAction();
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;

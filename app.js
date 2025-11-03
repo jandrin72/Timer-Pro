@@ -1096,7 +1096,7 @@
         this.paused = false;
         this.pausedDuration += performance.now() - this.pauseTime;
         this.animationFrameId = requestAnimationFrame(() => this.tick());
-        this.updateUI(); // mode will be updated in tick
+        this.updateUI();
         this.els.resumeBtn.disabled = true;
         this.els.pauseBtn.disabled = false;
       },
@@ -1148,6 +1148,13 @@
             beepPrep();
           }
         }, 1000);
+      },
+
+      applyPendingModeAfterPrep(defaultMode = 'work') {
+        const targetMode = this.pendingModeAfterPrep || defaultMode;
+        this.mode = targetMode;
+        this.pendingModeAfterPrep = null;
+        this.updateUI();
       },
 
       startTiming() {
@@ -1224,6 +1231,7 @@
         if(this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
         this.mode = 'completed';
+        this.pendingModeAfterPrep = null;
         this.updateUI();
         victoryBells();
         releaseWakeLock();

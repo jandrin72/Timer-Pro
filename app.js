@@ -181,6 +181,11 @@
     }
     function beepShort() { playTone({ freq: 1000, duration: 0.18, type: 'square', volume: 0.95 }); }
     function beepPrep() { playTone({ freq: 800, duration: 0.22, type: 'sine', volume: 0.95 }); }
+    function ringStart() {
+      playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 });
+      setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 300);
+    }
+
     function ring() {
       playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 });
       setTimeout(() => playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 }), 300);
@@ -502,7 +507,7 @@
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              ring();
+              ringStart();
               setTimeout(() => {
                 nextAction();
               }, 250);
@@ -879,7 +884,7 @@
       workTime: 20, restTime: 10, totalCycles: 8,
       mode: 'idle', // 'prep', 'work', 'rest', 'paused', 'completed'
       currentCycle: 0, timeRemaining: 20,
-      running: false, paused: false, inPrep: false, prepInterval: null,
+      running: false, paused: false, prepInterval: null,
       animationFrameId: null, startTime: 0, pauseTime: 0, pausedDuration: 0,
       lastAnnouncedSecond: null, editingPresetIndex: -1,
       lastModeBeforePause: null,
@@ -1103,7 +1108,7 @@
       
       resetAll() {
         this.closeWorkoutView();
-        this.running = false; this.paused = false; this.inPrep = false;
+        this.running = false; this.paused = false;
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.animationFrameId = null; this.prepInterval = null;
@@ -1122,7 +1127,6 @@
       },
       
       startPreparation(prepEl, timerEl, nextMode, nextAction) {
-        this.inPrep = true;
         this.mode = 'prep';
         this.updateUI();
         prepEl.style.display = 'block';
@@ -1137,7 +1141,6 @@
             clearInterval(this.prepInterval);
             this.prepInterval = null;
             setTimeout(() => {
-              this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
               ring();
@@ -1168,7 +1171,7 @@
       },
       
       tick() {
-        if (!this.running || this.paused || this.inPrep) return;
+        if (!this.running || this.paused) return;
 
         const elapsedMs = performance.now() - this.startTime - this.pausedDuration;
         const totalCycleDurationMs = (this.workTime + this.restTime) * 1000;
@@ -1874,7 +1877,7 @@
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              ring();
+              ringStart();
               setTimeout(() => {
                 nextAction();
               }, 250);
@@ -2435,7 +2438,7 @@
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              ring();
+              ringStart();
               setTimeout(() => {
                 nextAction();
               }, 250);

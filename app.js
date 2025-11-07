@@ -243,16 +243,44 @@
     }
 
     // === HELPERS ===
+    function extraerRPE(notas, rpeKey = null, timerKey = null) {
+      if (rpeKey && timerKey) {
+        const rpeTexto = getRpeText(timerKey, rpeKey);
+        if (rpeTexto) {
+          const rpeKeyMatch = rpeTexto.match(/(\d{1,2}\/10)/);
+          if (rpeKeyMatch) {
+            return rpeKeyMatch[1];
+          }
+        }
+      }
+
+      if (!notas) return 'N/A';
+
+      const rpeMatch = notas.match(/(?:RPE\s)?(\d{1,2}\/10)/i);
+      if (rpeMatch) {
+        return rpeMatch[1];
+      }
+
+      return 'N/A';
+    }
+
+    function limpiarNotas(notas) {
+      if (!notas) return '';
+      return notas.replace(/(?:RPE\s)?(\d{1,2}\/10)/i, '').trim();
+    }
+
     function downloadCSV(csvContent, filename) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+      const bom = '\uFEFF';
+      const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
     
     // === EMOM APP LOGIC ===
@@ -766,20 +794,23 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'secondsPerCycle', 'completedCycles', 'totalTimeSeconds', 'rpe', 'notes'];
+
+        const head = ['Fecha', 'Segundos por Ciclo', 'Ciclos Completados', 'RPE', 'Tiempo Total (min)', 'Notas'];
         const rows = history.map(w => {
-          const rpeText = getRpeText('emom', w.rpe);
-          return [
-            new Date(w.date).toISOString(),
-            w.secondsPerCycle,
-            w.cycles,
-            w.totalTime,
-            (rpeText || '').replace(/[,\n"]/g, ' '),
-            (w.notes || '').replace(/[,\n"]/g, ' ')
-          ];
+          const fecha = new Date(w.date).toLocaleDateString('es-ES');
+          const secCiclo = w.secondsPerCycle;
+          const ciclos = w.cycles;
+          const rpe = extraerRPE(w.notes, w.rpe, 'emom');
+          const tiempoMin = Math.floor((w.totalTime || 0) / 60);
+          const notas = limpiarNotas(w.notes);
+
+          return [fecha, secCiclo, ciclos, rpe, tiempoMin, notas].map(v =>
+            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
+          );
         });
-        const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csv, 'emom_history.csv');
+
+        const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
+        downloadCSV(csv, 'historial-emom.xls');
       },
       saveWorkout(data, notes = '', rpe = null) {
         const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes, rpe };
@@ -1449,21 +1480,24 @@
       exportHistory() {
         const history = this.history;
         if (history.length === 0) return;
-        const head = ['date', 'workSeconds', 'restSeconds', 'completedCycles', 'totalTimeSeconds', 'rpe', 'notes'];
+
+        const head = ['Fecha', 'Trabajo (seg)', 'Descanso (seg)', 'Ciclos', 'RPE', 'Duración Total (min)', 'Notas'];
         const rows = history.map(w => {
-          const rpeText = getRpeText('tabata', w.rpe);
-          return [
-            new Date(w.date).toISOString(),
-            w.work,
-            w.rest,
-            w.cycles,
-            w.totalTime,
-            (rpeText || '').replace(/[,\n"]/g, ' '),
-            (w.notes || '').replace(/[,\n"]/g, ' ')
-          ];
+          const fecha = new Date(w.date).toLocaleDateString('es-ES');
+          const trabajo = w.work;
+          const descanso = w.rest;
+          const ciclos = w.cycles;
+          const rpe = extraerRPE(w.notes, w.rpe, 'tabata');
+          const tiempoMin = Math.floor((w.totalTime || 0) / 60);
+          const notas = limpiarNotas(w.notes);
+
+          return [fecha, trabajo, descanso, ciclos, rpe, tiempoMin, notas].map(v =>
+            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
+          );
         });
-        const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csv, 'tabata_history.csv');
+
+        const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
+        downloadCSV(csv, 'historial-tabata.xls');
       },
       saveWorkout(notes = '', rpe = null) {
         if (!this.currentWorkout) return;
@@ -2074,21 +2108,24 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'finalTime', 'timeCapMinutes', 'lapsCount', 'laps', 'rpe', 'notes'];
+        const head = ['Fecha', 'Tiempo Final (MM:SS)', 'Time Cap (min)', 'Total Vueltas', 'RPE', 'Notas'];
         const rows = history.map(w => {
-          const rpeText = getRpeText('fortime', w.rpe);
-          return [
-            new Date(w.date).toISOString(),
-            this.formatTime(w.finalTime),
-            w.timeCap ? w.timeCap / 60000 : '',
-            w.laps.length,
-            w.laps.map(l => this.formatTime(l)).join('; '),
-            (rpeText || '').replace(/[,\n"]/g, ' '),
-            (w.notes || '').replace(/[,\n"]/g, ' ')
-          ];
+          const fecha = new Date(w.date).toLocaleDateString('es-ES');
+          const tiempoFinal = typeof HelperUtil !== 'undefined' && typeof HelperUtil.formatTime === 'function'
+            ? HelperUtil.formatTime(w.finalTime)
+            : this.formatTime(w.finalTime);
+          const timeCap = w.timeCap ? Math.floor(w.timeCap / 60000) : 'N/A';
+          const vueltas = w.laps?.length || 0;
+          const rpe = extraerRPE(w.notes, w.rpe, 'fortime');
+          const notas = limpiarNotas(w.notes);
+
+          return [fecha, tiempoFinal, timeCap, vueltas, rpe, notas].map(v =>
+            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
+          );
         });
-        const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csv, 'fortime_history.csv');
+
+        const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
+        downloadCSV(csv, 'historial-fortime.xls');
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {
@@ -2668,19 +2705,21 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'durationMinutes', 'completedRounds', 'rpe', 'notes'];
+        const head = ['Fecha', 'Duración (min)', 'Rondas Completadas', 'RPE', 'Notas'];
         const rows = history.map(w => {
-          const rpeText = getRpeText('amrap', w.rpe);
-          return [
-            new Date(w.date).toISOString(),
-            w.duration / 60000,
-            w.rounds,
-            (rpeText || '').replace(/[,\n"]/g, ' '),
-            (w.notes || '').replace(/[,\n"]/g, ' ')
-          ];
+          const fecha = new Date(w.date).toLocaleDateString('es-ES');
+          const duracion = Math.floor((w.duration || 0) / 60000);
+          const rondas = w.rounds;
+          const rpe = extraerRPE(w.notes, w.rpe, 'amrap');
+          const notas = limpiarNotas(w.notes);
+
+          return [fecha, duracion, rondas, rpe, notas].map(v =>
+            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
+          );
         });
-        const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csv, 'amrap_history.csv');
+
+        const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
+        downloadCSV(csv, 'historial-amrap.xls');
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {

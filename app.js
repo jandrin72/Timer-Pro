@@ -269,15 +269,6 @@
       return notas.replace(/(?:RPE\s)?(\d{1,2}\/10)/i, '').trim();
     }
 
-    function formatRpeForExport(rpeValue) {
-      if (!rpeValue || rpeValue === 'N/A') return 'N/A';
-      return `'${rpeValue}`;
-    }
-
-    function sanitizeForCsv(value) {
-      return String(value ?? '').replace(/;/g, ' ').replace(/\n/g, ' ');
-    }
-
     function downloadCSV(csvContent, filename) {
       const bom = '\uFEFF';
       const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -804,16 +795,18 @@
         const history = this.getHistory();
         if (history.length === 0) return;
 
-        const head = ['Date', 'Seconds per Cycle', 'Completed Cycles', 'RPE', 'Total Time (min)', 'Notes'];
+        const head = ['Fecha', 'Segundos por Ciclo', 'Ciclos Completados', 'RPE', 'Tiempo Total (min)', 'Notas'];
         const rows = history.map(w => {
-          const date = new Date(w.date).toLocaleDateString('en-US');
-          const secondsPerCycle = w.secondsPerCycle;
-          const completedCycles = w.cycles;
-          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'emom'));
-          const totalMinutes = Math.floor((w.totalTime || 0) / 60);
-          const notes = limpiarNotas(w.notes);
+          const fecha = new Date(w.date).toLocaleDateString('es-ES');
+          const secCiclo = w.secondsPerCycle;
+          const ciclos = w.cycles;
+          const rpe = extraerRPE(w.notes, w.rpe, 'emom');
+          const tiempoMin = Math.floor((w.totalTime || 0) / 60);
+          const notas = limpiarNotas(w.notes);
 
-          return [date, secondsPerCycle, completedCycles, rpe, totalMinutes, notes].map(sanitizeForCsv);
+          return [fecha, secCiclo, ciclos, rpe, tiempoMin, notas].map(v =>
+            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
+          );
         });
 
         const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
@@ -1488,17 +1481,19 @@
         const history = this.history;
         if (history.length === 0) return;
 
-        const head = ['Date', 'Work (sec)', 'Rest (sec)', 'Cycles', 'RPE', 'Total Duration (min)', 'Notes'];
+        const head = ['Fecha', 'Trabajo (seg)', 'Descanso (seg)', 'Ciclos', 'RPE', 'Duración Total (min)', 'Notas'];
         const rows = history.map(w => {
-          const date = new Date(w.date).toLocaleDateString('en-US');
-          const workSeconds = w.work;
-          const restSeconds = w.rest;
-          const cycles = w.cycles;
-          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'tabata'));
-          const totalMinutes = Math.floor((w.totalTime || 0) / 60);
-          const notes = limpiarNotas(w.notes);
+          const fecha = new Date(w.date).toLocaleDateString('es-ES');
+          const trabajo = w.work;
+          const descanso = w.rest;
+          const ciclos = w.cycles;
+          const rpe = extraerRPE(w.notes, w.rpe, 'tabata');
+          const tiempoMin = Math.floor((w.totalTime || 0) / 60);
+          const notas = limpiarNotas(w.notes);
 
-          return [date, workSeconds, restSeconds, cycles, rpe, totalMinutes, notes].map(sanitizeForCsv);
+          return [fecha, trabajo, descanso, ciclos, rpe, tiempoMin, notas].map(v =>
+            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
+          );
         });
 
         const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
@@ -2113,18 +2108,20 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['Date', 'Final Time (MM:SS)', 'Time Cap (min)', 'Total Rounds', 'RPE', 'Notes'];
+        const head = ['Fecha', 'Tiempo Final (MM:SS)', 'Time Cap (min)', 'Total Vueltas', 'RPE', 'Notas'];
         const rows = history.map(w => {
-          const date = new Date(w.date).toLocaleDateString('en-US');
+          const fecha = new Date(w.date).toLocaleDateString('es-ES');
           const tiempoFinal = typeof HelperUtil !== 'undefined' && typeof HelperUtil.formatTime === 'function'
             ? HelperUtil.formatTime(w.finalTime)
             : this.formatTime(w.finalTime);
           const timeCap = w.timeCap ? Math.floor(w.timeCap / 60000) : 'N/A';
-          const rounds = w.laps?.length || 0;
-          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'fortime'));
-          const notes = limpiarNotas(w.notes);
+          const vueltas = w.laps?.length || 0;
+          const rpe = extraerRPE(w.notes, w.rpe, 'fortime');
+          const notas = limpiarNotas(w.notes);
 
-          return [date, tiempoFinal, timeCap, rounds, rpe, notes].map(sanitizeForCsv);
+          return [fecha, tiempoFinal, timeCap, vueltas, rpe, notas].map(v =>
+            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
+          );
         });
 
         const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
@@ -2708,15 +2705,17 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['Date', 'Duration (min)', 'Completed Rounds', 'RPE', 'Notes'];
+        const head = ['Fecha', 'Duración (min)', 'Rondas Completadas', 'RPE', 'Notas'];
         const rows = history.map(w => {
-          const date = new Date(w.date).toLocaleDateString('en-US');
-          const durationMinutes = Math.floor((w.duration || 0) / 60000);
-          const rounds = w.rounds;
-          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'amrap'));
-          const notes = limpiarNotas(w.notes);
+          const fecha = new Date(w.date).toLocaleDateString('es-ES');
+          const duracion = Math.floor((w.duration || 0) / 60000);
+          const rondas = w.rounds;
+          const rpe = extraerRPE(w.notes, w.rpe, 'amrap');
+          const notas = limpiarNotas(w.notes);
 
-          return [date, durationMinutes, rounds, rpe, notes].map(sanitizeForCsv);
+          return [fecha, duracion, rondas, rpe, notas].map(v =>
+            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
+          );
         });
 
         const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');

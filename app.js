@@ -879,9 +879,10 @@
       workTime: 20, restTime: 10, totalCycles: 8,
       mode: 'idle', // 'prep', 'work', 'rest', 'paused', 'completed'
       currentCycle: 0, timeRemaining: 20,
-      running: false, paused: false, prepInterval: null,
+      running: false, paused: false, inPrep: false, prepInterval: null,
       animationFrameId: null, startTime: 0, pauseTime: 0, pausedDuration: 0,
       lastAnnouncedSecond: null, editingPresetIndex: -1,
+      lastModeBeforePause: null,
       currentWorkout: null,
       history: [], customPresets: [], initialized: false,
       workoutViewActive: false,
@@ -1060,12 +1061,13 @@
         this.timeRemaining = this.workTime;
         this.running = true;
         this.paused = false;
+        this.lastModeBeforePause = null;
         this.els.startBtn.disabled = true;
         this.els.pauseBtn.disabled = false;
         this.els.resumeBtn.disabled = true;
         this.els.toggleWorkoutViewBtn.style.display = 'inline-block';
         this.updateUI();
-        this.startPreparation(this.els.prep, this.els.timer, () => {
+        this.startPreparation(this.els.prep, this.els.timer, 'work', () => {
           this.startTiming();
           this.openWorkoutView();
         });
@@ -1078,6 +1080,7 @@
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.animationFrameId = null; this.prepInterval = null;
+        this.lastModeBeforePause = this.mode;
         this.mode = 'paused';
         this.updateUI();
         releaseWakeLock();
@@ -1093,20 +1096,21 @@
         this.paused = false;
         this.pausedDuration += performance.now() - this.pauseTime;
         this.animationFrameId = requestAnimationFrame(() => this.tick());
-        this.updateUI(); // mode will be updated in tick
+        this.updateUI();
         this.els.resumeBtn.disabled = true;
         this.els.pauseBtn.disabled = false;
       },
       
       resetAll() {
         this.closeWorkoutView();
-        this.running = false; this.paused = false;
+        this.running = false; this.paused = false; this.inPrep = false;
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.animationFrameId = null; this.prepInterval = null;
         releaseWakeLock();
         this.mode = 'idle';
         this.currentCycle = 0;
+        this.lastModeBeforePause = null;
         this.updateValues();
         this.els.prep.style.display = 'none';
         this.els.timer.style.display = 'block';
@@ -1117,8 +1121,9 @@
         this.els.toggleWorkoutViewBtn.style.display = 'none';
       },
       
-      startPreparation(prepEl, timerEl, nextAction) {
+      startPreparation(prepEl, timerEl, nextMode, nextAction) {
         this.mode = 'prep';
+        this.inPrep = true;
         this.updateUI();
         prepEl.style.display = 'block';
         timerEl.style.display = 'none';
@@ -1132,6 +1137,7 @@
             clearInterval(this.prepInterval);
             this.prepInterval = null;
             setTimeout(() => {
+              this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
               ring();
@@ -1146,6 +1152,13 @@
         }, 1000);
       },
 
+      applyPendingModeAfterPrep(defaultMode = 'work') {
+        const targetMode = this.pendingModeAfterPrep || defaultMode;
+        this.mode = targetMode;
+        this.pendingModeAfterPrep = null;
+        this.updateUI();
+      },
+
       startTiming() {
         this.startTime = performance.now();
         this.pausedDuration = 0;
@@ -1155,7 +1168,7 @@
       },
       
       tick() {
-        if (!this.running || this.paused) return;
+        if (!this.running || this.paused || this.inPrep) return;
 
         const elapsedMs = performance.now() - this.startTime - this.pausedDuration;
         const totalCycleDurationMs = (this.workTime + this.restTime) * 1000;
@@ -1220,6 +1233,7 @@
         if(this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
         this.mode = 'completed';
+        this.pendingModeAfterPrep = null;
         this.updateUI();
         victoryBells();
         releaseWakeLock();
@@ -1304,7 +1318,8 @@
         }
       },
       resumeWithPrep(prepEl, timerEl) {
-        this.startPreparation(prepEl, timerEl, () => this.resume());
+        const targetMode = this.lastModeBeforePause || 'work';
+        this.startPreparation(prepEl, timerEl, targetMode, () => this.resume());
       },
       
       // Presets

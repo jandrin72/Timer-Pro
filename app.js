@@ -1128,22 +1128,24 @@
         timerEl.style.display = 'none';
         let prep = 5;
         prepEl.textContent = prep;
-        beepPrep();  // Primer beep
+        beepPrep();  // Beep 1 (prep=5)
+
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.prepInterval = setInterval(() => {
           prep--;
+
           if (prep <= 0) {
             clearInterval(this.prepInterval);
             this.prepInterval = null;
             prepEl.style.display = 'none';
             timerEl.style.display = 'block';
-            // ring() ELIMINADO para la prueba
+            // NO ring() - eliminado
             setTimeout(() => {
               nextAction();
-            }, 300);
+            }, 100);
           } else {
             prepEl.textContent = prep;
-            beepPrep();  // Beeps en 4, 3, 2, 1
+            beepPrep();  // Beeps 2,3,4,5 (prep=4,3,2,1)
           }
         }, 1000);
       },
@@ -1216,9 +1218,10 @@
           }
         }
 
-        if (shouldRing) {
-          ring();
-        }
+        // Campanas de cambio de modo eliminadas para prueba
+        // if (shouldRing) {
+        //   ring();
+        // }
 
         this.animationFrameId = requestAnimationFrame(() => this.tick());
       },

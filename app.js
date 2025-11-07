@@ -1128,25 +1128,22 @@
         timerEl.style.display = 'none';
         let prep = 5;
         prepEl.textContent = prep;
-
+        beepPrep();  // Primer beep
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.prepInterval = setInterval(() => {
           prep--;
-          prepEl.textContent = prep;
-
-          if (prep === 3 || prep === 2 || prep === 1) {
-            beepPrep();
-          }
-
-          if (prep === 0) {
+          if (prep <= 0) {
             clearInterval(this.prepInterval);
             this.prepInterval = null;
             prepEl.style.display = 'none';
             timerEl.style.display = 'block';
-            ring();
+            // ring() ELIMINADO para la prueba
             setTimeout(() => {
               nextAction();
             }, 300);
+          } else {
+            prepEl.textContent = prep;
+            beepPrep();  // Beeps en 4, 3, 2, 1
           }
         }, 1000);
       },

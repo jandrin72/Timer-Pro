@@ -181,12 +181,9 @@
     }
     function beepShort() { playTone({ freq: 1000, duration: 0.18, type: 'square', volume: 0.95 }); }
     function beepPrep() { playTone({ freq: 800, duration: 0.22, type: 'sine', volume: 0.95 }); }
-    function ringStart() {
-      playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 });
-      setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 300);
-    }
-
     function ring() {
+      console.log('[RING CALLED] ' + new Date().toISOString());
+      console.trace('Ring call stack');
       playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 });
       setTimeout(() => playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 }), 300);
       setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 600);
@@ -507,10 +504,10 @@
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              ringStart();
+              ring();
               setTimeout(() => {
                 nextAction();
-              }, 250);
+              }, 1000);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1146,7 +1143,7 @@
               ring();
               setTimeout(() => {
                 nextAction();
-              }, 250);
+              }, 1000);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1877,10 +1874,10 @@
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              ringStart();
+              ring();
               setTimeout(() => {
                 nextAction();
-              }, 250);
+              }, 1000);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -2438,10 +2435,10 @@
               this.inPrep = false;
               prepEl.style.display = 'none';
               timerEl.style.display = 'block';
-              ringStart();
+              ring();
               setTimeout(() => {
                 nextAction();
-              }, 250);
+              }, 1000);
             }, 250);
           } else {
             prepEl.textContent = prep;

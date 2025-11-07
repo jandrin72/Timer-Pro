@@ -1139,10 +1139,10 @@
             this.prepInterval = null;
             prepEl.style.display = 'none';
             timerEl.style.display = 'block';
-            // NO ring() - eliminado
+            ring();  // Campana al iniciar trabajo
             setTimeout(() => {
               nextAction();
-            }, 100);
+            }, 300);
           } else {
             prepEl.textContent = prep;
             beepPrep();  // Beeps 2,3,4,5 (prep=4,3,2,1)
@@ -1218,10 +1218,12 @@
           }
         }
 
-        // Campanas de cambio de modo eliminadas para prueba
-        // if (shouldRing) {
-        //   ring();
-        // }
+        if (shouldRing) {
+          // Solo tocar campana si NO estamos en countdown (últimos 5 segundos)
+          if (this.timeRemaining > 5) {
+            ring();
+          }
+        }
 
         this.animationFrameId = requestAnimationFrame(() => this.tick());
       },

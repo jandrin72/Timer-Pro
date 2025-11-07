@@ -243,6 +243,20 @@
     }
 
     // === HELPERS ===
+    const CSV_HEADERS = {
+      emom: ['Date', 'Seconds per Cycle', 'Completed Cycles', 'RPE', 'Total Time (min)', 'Notes'],
+      tabata: ['Date', 'Work (sec)', 'Rest (sec)', 'Cycles', 'RPE', 'Total Duration (min)', 'Notes'],
+      fortime: ['Date', 'Final Time (MM:SS)', 'Time Cap (min)', 'Total Rounds', 'RPE', 'Notes'],
+      amrap: ['Date', 'Duration (min)', 'Completed Rounds', 'RPE', 'Notes']
+    };
+
+    const CSV_FILE_NAMES = {
+      emom: 'historial-emom.xls',
+      tabata: 'historial-tabata.xls',
+      fortime: 'historial-fortime.xls',
+      amrap: 'historial-amrap.xls'
+    };
+
     function extraerRPE(notas, rpeKey = null, timerKey = null) {
       if (rpeKey && timerKey) {
         const rpeTexto = getRpeText(timerKey, rpeKey);
@@ -267,6 +281,15 @@
     function limpiarNotas(notas) {
       if (!notas) return '';
       return notas.replace(/(?:RPE\s)?(\d{1,2}\/10)/i, '').trim();
+    }
+
+    function formatRpeForExport(rpeValue) {
+      if (!rpeValue || rpeValue === 'N/A') return 'N/A';
+      return `="${rpeValue}"`;
+    }
+
+    function sanitizeForCsv(value) {
+      return String(value ?? '').replace(/;/g, ' ').replace(/\n/g, ' ');
     }
 
     function downloadCSV(csvContent, filename) {
@@ -795,22 +818,20 @@
         const history = this.getHistory();
         if (history.length === 0) return;
 
-        const head = ['Fecha', 'Segundos por Ciclo', 'Ciclos Completados', 'RPE', 'Tiempo Total (min)', 'Notas'];
+        const head = CSV_HEADERS.emom;
         const rows = history.map(w => {
-          const fecha = new Date(w.date).toLocaleDateString('es-ES');
-          const secCiclo = w.secondsPerCycle;
-          const ciclos = w.cycles;
-          const rpe = extraerRPE(w.notes, w.rpe, 'emom');
-          const tiempoMin = Math.floor((w.totalTime || 0) / 60);
-          const notas = limpiarNotas(w.notes);
+          const date = new Date(w.date).toLocaleDateString('en-US');
+          const secondsPerCycle = w.secondsPerCycle;
+          const completedCycles = w.cycles;
+          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'emom'));
+          const totalMinutes = Math.floor((w.totalTime || 0) / 60);
+          const notes = limpiarNotas(w.notes);
 
-          return [fecha, secCiclo, ciclos, rpe, tiempoMin, notas].map(v =>
-            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
-          );
+          return [date, secondsPerCycle, completedCycles, rpe, totalMinutes, notes].map(sanitizeForCsv);
         });
 
-        const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
-        downloadCSV(csv, 'historial-emom.xls');
+        const csv = head.map(sanitizeForCsv).join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
+        downloadCSV(csv, CSV_FILE_NAMES.emom);
       },
       saveWorkout(data, notes = '', rpe = null) {
         const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes, rpe };
@@ -1481,23 +1502,21 @@
         const history = this.history;
         if (history.length === 0) return;
 
-        const head = ['Fecha', 'Trabajo (seg)', 'Descanso (seg)', 'Ciclos', 'RPE', 'Duración Total (min)', 'Notas'];
+        const head = CSV_HEADERS.tabata;
         const rows = history.map(w => {
-          const fecha = new Date(w.date).toLocaleDateString('es-ES');
-          const trabajo = w.work;
-          const descanso = w.rest;
-          const ciclos = w.cycles;
-          const rpe = extraerRPE(w.notes, w.rpe, 'tabata');
-          const tiempoMin = Math.floor((w.totalTime || 0) / 60);
-          const notas = limpiarNotas(w.notes);
+          const date = new Date(w.date).toLocaleDateString('en-US');
+          const workSeconds = w.work;
+          const restSeconds = w.rest;
+          const cycles = w.cycles;
+          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'tabata'));
+          const totalMinutes = Math.floor((w.totalTime || 0) / 60);
+          const notes = limpiarNotas(w.notes);
 
-          return [fecha, trabajo, descanso, ciclos, rpe, tiempoMin, notas].map(v =>
-            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
-          );
+          return [date, workSeconds, restSeconds, cycles, rpe, totalMinutes, notes].map(sanitizeForCsv);
         });
 
-        const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
-        downloadCSV(csv, 'historial-tabata.xls');
+        const csv = head.map(sanitizeForCsv).join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
+        downloadCSV(csv, CSV_FILE_NAMES.tabata);
       },
       saveWorkout(notes = '', rpe = null) {
         if (!this.currentWorkout) return;
@@ -2108,24 +2127,22 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['Fecha', 'Tiempo Final (MM:SS)', 'Time Cap (min)', 'Total Vueltas', 'RPE', 'Notas'];
+        const head = CSV_HEADERS.fortime;
         const rows = history.map(w => {
-          const fecha = new Date(w.date).toLocaleDateString('es-ES');
+          const date = new Date(w.date).toLocaleDateString('en-US');
           const tiempoFinal = typeof HelperUtil !== 'undefined' && typeof HelperUtil.formatTime === 'function'
             ? HelperUtil.formatTime(w.finalTime)
             : this.formatTime(w.finalTime);
           const timeCap = w.timeCap ? Math.floor(w.timeCap / 60000) : 'N/A';
-          const vueltas = w.laps?.length || 0;
-          const rpe = extraerRPE(w.notes, w.rpe, 'fortime');
-          const notas = limpiarNotas(w.notes);
+          const rounds = w.laps?.length || 0;
+          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'fortime'));
+          const notes = limpiarNotas(w.notes);
 
-          return [fecha, tiempoFinal, timeCap, vueltas, rpe, notas].map(v =>
-            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
-          );
+          return [date, tiempoFinal, timeCap, rounds, rpe, notes].map(sanitizeForCsv);
         });
 
-        const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
-        downloadCSV(csv, 'historial-fortime.xls');
+        const csv = head.map(sanitizeForCsv).join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
+        downloadCSV(csv, CSV_FILE_NAMES.fortime);
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {
@@ -2705,21 +2722,19 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['Fecha', 'Duración (min)', 'Rondas Completadas', 'RPE', 'Notas'];
+        const head = CSV_HEADERS.amrap;
         const rows = history.map(w => {
-          const fecha = new Date(w.date).toLocaleDateString('es-ES');
-          const duracion = Math.floor((w.duration || 0) / 60000);
-          const rondas = w.rounds;
-          const rpe = extraerRPE(w.notes, w.rpe, 'amrap');
-          const notas = limpiarNotas(w.notes);
+          const date = new Date(w.date).toLocaleDateString('en-US');
+          const durationMinutes = Math.floor((w.duration || 0) / 60000);
+          const rounds = w.rounds;
+          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'amrap'));
+          const notes = limpiarNotas(w.notes);
 
-          return [fecha, duracion, rondas, rpe, notas].map(v =>
-            String(v ?? '').replace(/;/g, ' ').replace(/\n/g, ' ')
-          );
+          return [date, durationMinutes, rounds, rpe, notes].map(sanitizeForCsv);
         });
 
-        const csv = head.join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
-        downloadCSV(csv, 'historial-amrap.xls');
+        const csv = head.map(sanitizeForCsv).join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
+        downloadCSV(csv, CSV_FILE_NAMES.amrap);
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {

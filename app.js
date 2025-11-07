@@ -181,12 +181,28 @@
     }
     function beepShort() { playTone({ freq: 1000, duration: 0.18, type: 'square', volume: 0.95 }); }
     function beepPrep() { playTone({ freq: 800, duration: 0.22, type: 'sine', volume: 0.95 }); }
+    let ringDebounce = false;
+
     function ring() {
-      console.log('[RING CALLED] ' + new Date().toISOString());
-      console.trace('Ring call stack');
+      // Solo ejecutar si no está en debounce
+      if (ringDebounce) {
+        console.log('[RING BLOCKED BY DEBOUNCE]');
+        return;
+      }
+
+      // Activar bloqueo inmediatamente
+      ringDebounce = true;
+      console.log('[RING EXECUTED]');
+
       playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 });
       setTimeout(() => playTone({ freq: 1200, duration: 0.25, type: 'square', volume: 1.0 }), 300);
       setTimeout(() => playTone({ freq: 1200, duration: 0.4, type: 'square', volume: 1.0 }), 600);
+
+      // Desbloquearse después de 2 segundos
+      setTimeout(() => {
+        ringDebounce = false;
+        console.log('[RING DEBOUNCE RELEASED]');
+      }, 2000);
     }
     let victoryAudio = null;
     function victoryBells() {
@@ -507,7 +523,7 @@
               ring();
               setTimeout(() => {
                 nextAction();
-              }, 1000);
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1143,7 +1159,7 @@
               ring();
               setTimeout(() => {
                 nextAction();
-              }, 1000);
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -1877,7 +1893,7 @@
               ring();
               setTimeout(() => {
                 nextAction();
-              }, 1000);
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;
@@ -2438,7 +2454,7 @@
               ring();
               setTimeout(() => {
                 nextAction();
-              }, 1000);
+              }, 250);
             }, 250);
           } else {
             prepEl.textContent = prep;

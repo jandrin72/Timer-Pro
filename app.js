@@ -879,7 +879,7 @@
       workTime: 20, restTime: 10, totalCycles: 8,
       mode: 'idle', // 'prep', 'work', 'rest', 'paused', 'completed'
       currentCycle: 0, timeRemaining: 20,
-      running: false, paused: false, prepInterval: null,
+      running: false, paused: false, inPrep: false, prepInterval: null,
       animationFrameId: null, startTime: 0, pauseTime: 0, pausedDuration: 0,
       lastAnnouncedSecond: null, editingPresetIndex: -1,
       lastModeBeforePause: null,
@@ -1103,7 +1103,7 @@
       
       resetAll() {
         this.closeWorkoutView();
-        this.running = false; this.paused = false;
+        this.running = false; this.paused = false; this.inPrep = false;
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.animationFrameId = null; this.prepInterval = null;
@@ -1122,30 +1122,32 @@
       },
       
       startPreparation(prepEl, timerEl, nextMode, nextAction) {
+        this.inPrep = true;
         this.mode = 'prep';
         this.updateUI();
         prepEl.style.display = 'block';
         timerEl.style.display = 'none';
         let prep = 5;
         prepEl.textContent = prep;
-        beepPrep();  // Beep 1 (prep=5)
-
+        beepPrep();
         if (this.prepInterval) clearInterval(this.prepInterval);
         this.prepInterval = setInterval(() => {
           prep--;
-
           if (prep <= 0) {
             clearInterval(this.prepInterval);
             this.prepInterval = null;
-            prepEl.style.display = 'none';
-            timerEl.style.display = 'block';
-            ring();  // Campana al iniciar trabajo
             setTimeout(() => {
-              nextAction();
-            }, 300);
+              this.inPrep = false;
+              prepEl.style.display = 'none';
+              timerEl.style.display = 'block';
+              ring();
+              setTimeout(() => {
+                nextAction();
+              }, 250);
+            }, 250);
           } else {
             prepEl.textContent = prep;
-            beepPrep();  // Beeps 2,3,4,5 (prep=4,3,2,1)
+            beepPrep();
           }
         }, 1000);
       },
@@ -1166,7 +1168,7 @@
       },
       
       tick() {
-        if (!this.running || this.paused) return;
+        if (!this.running || this.paused || this.inPrep) return;
 
         const elapsedMs = performance.now() - this.startTime - this.pausedDuration;
         const totalCycleDurationMs = (this.workTime + this.restTime) * 1000;
@@ -1219,10 +1221,7 @@
         }
 
         if (shouldRing) {
-          // Solo tocar campana si NO estamos en countdown (últimos 5 segundos)
-          if (this.timeRemaining > 5) {
-            ring();
-          }
+          ring();
         }
 
         this.animationFrameId = requestAnimationFrame(() => this.tick());

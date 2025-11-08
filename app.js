@@ -1946,7 +1946,9 @@
         this.closeWorkoutView();
         this.running = false;
         if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
-        if(!isTimeCap) this.elapsedTime = performance.now() - this.startTime - this.pausedDuration;
+        if (!isTimeCap && !this.paused) {
+          this.elapsedTime = performance.now() - this.startTime - this.pausedDuration;
+        }
         this.updateUI();
         this.completeWorkout();
       },

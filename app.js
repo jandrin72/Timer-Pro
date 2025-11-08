@@ -246,7 +246,7 @@
     const EXCEL_HEADERS = {
       emom: ['Date', 'Seconds per Cycle', 'Completed Cycles', 'RPE', 'Total Time (min)', 'Notes'],
       tabata: ['Date', 'Work (sec)', 'Rest (sec)', 'Cycles', 'RPE', 'Total Duration (min)', 'Notes'],
-      fortime: ['Date', 'Final Time (MM:SS)', 'Time Cap (min)', 'Total Rounds', 'RPE', 'Notes'],
+      fortime: ['Date', 'Final Time (MM:SS.ms)', 'Time Cap (min)', 'Total Rounds', 'RPE', 'Notes'],
       amrap: ['Date', 'Duration (min)', 'Completed Rounds', 'RPE', 'Notes']
     };
 

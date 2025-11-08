@@ -243,16 +243,153 @@
     }
 
     // === HELPERS ===
+    const EXCEL_HEADERS = {
+      emom: ['Date', 'Seconds per Cycle', 'Completed Cycles', 'RPE', 'Total Time (min)', 'Notes'],
+      tabata: ['Date', 'Work (sec)', 'Rest (sec)', 'Cycles', 'RPE', 'Total Duration (min)', 'Notes'],
+      fortime: ['Date', 'Final Time (MM:SS.ms)', 'Time Cap (min)', 'Total Rounds', 'RPE', 'Notes'],
+      amrap: ['Date', 'Duration (min)', 'Completed Rounds', 'RPE', 'Notes']
+    };
+
+    const EXCEL_FILE_NAMES = {
+      emom: 'Track record EMOM.xls',
+      tabata: 'Track record Tabata.xls',
+      fortime: 'Track record For Time.xls',
+      amrap: 'Track record AMRAP.xls'
+    };
+
+    function extraerRPE(notas, rpeKey = null, timerKey = null) {
+      if (rpeKey && timerKey) {
+        const rpeTexto = getRpeText(timerKey, rpeKey);
+        if (rpeTexto) {
+          const rpeKeyMatch = rpeTexto.match(/(\d{1,2}\/10)/);
+          if (rpeKeyMatch) {
+            return rpeKeyMatch[1];
+          }
+        }
+      }
+
+      if (!notas) return 'N/A';
+
+      const rpeMatch = notas.match(/(?:RPE\s)?(\d{1,2}\/10)/i);
+      if (rpeMatch) {
+        return rpeMatch[1];
+      }
+
+      return 'N/A';
+    }
+
+    function limpiarNotas(notas) {
+      if (!notas) return '';
+      return notas.replace(/(?:RPE\s)?(\d{1,2}\/10)/i, '').trim();
+    }
+
+    function sanitizeForExport(value) {
+      return String(value ?? '').replace(/\r?\n/g, ' ').trim();
+    }
+
+    function escapeXml(value) {
+      return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    }
+
+    function sanitizeSheetName(name) {
+      const cleaned = String(name || 'Sheet')
+        .replace(/[\\/*?:\[\]]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!cleaned) return 'Sheet';
+      return cleaned.substring(0, 31);
+    }
+
+    function buildExcelCell(value) {
+      const sanitized = sanitizeForExport(value);
+      return `<Cell><Data ss:Type="String">${escapeXml(sanitized)}</Data></Cell>`;
+    }
+
+    function getRpeScaleEntries(timerKey) {
+      const config = RPE_CONFIG[timerKey];
+      if (!config) return [];
+
+      return config.options.map(key => {
+        const translated = sanitizeForExport(t(key));
+        const valueMatch = translated.match(/(\d{1,2}\/10)/);
+        const rawValue = valueMatch ? valueMatch[1] : translated;
+        let description = translated;
+
+        if (valueMatch) {
+          const split = translated.split(valueMatch[1]);
+          if (split.length > 1) {
+            description = split.slice(1).join(valueMatch[1]);
+          }
+          description = description.replace(/^[-–—:\s]+/, '').trim();
+        }
+
+        if (!description || description === rawValue) {
+          description = translated;
+        }
+
+        const value = rawValue.replace(/^RPE\s*/i, '').trim();
+
+        return {
+          value,
+          description
+        };
+      });
+    }
+
+    function buildExcelWorkbook(timerKey, headers, rows) {
+      const historySheetName = sanitizeSheetName(t('workout_history') || 'History');
+      const rpeSheetName = 'RPE Scale';
+      const rpeHeaderValue = t('rpe_scale_header_rpe') || 'RPE';
+      const rpeHeaderDescription = t('rpe_scale_header_description') || 'Description';
+      const rpeEntries = getRpeScaleEntries(timerKey);
+
+      const historyHeaderRow = `<Row>${headers.map(buildExcelCell).join('')}</Row>`;
+      const historyRows = rows
+        .map(row => `<Row>${row.map(buildExcelCell).join('')}</Row>`)
+        .join('');
+
+      const rpeHeaderRow = `<Row>${buildExcelCell(rpeHeaderValue)}${buildExcelCell(rpeHeaderDescription)}</Row>`;
+      const rpeRows = rpeEntries
+        .map(entry => `<Row>${buildExcelCell(entry.value)}${buildExcelCell(entry.description)}</Row>`)
+        .join('');
+
+      return [
+        '<?xml version="1.0"?>',
+        '<?mso-application progid="Excel.Sheet"?>',
+        '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">',
+        `<Worksheet ss:Name="${escapeXml(historySheetName)}">`,
+        '<Table>',
+        historyHeaderRow,
+        historyRows,
+        '</Table>',
+        '</Worksheet>',
+        `<Worksheet ss:Name="${escapeXml(rpeSheetName)}">`,
+        '<Table>',
+        rpeHeaderRow,
+        rpeRows,
+        '</Table>',
+        '</Worksheet>',
+        '</Workbook>'
+      ].join('');
+    }
+
     function downloadCSV(csvContent, filename) {
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+      const bom = '\uFEFF';
+      const blob = new Blob([bom + csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
     
     // === EMOM APP LOGIC ===
@@ -766,20 +903,21 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'secondsPerCycle', 'completedCycles', 'totalTimeSeconds', 'rpe', 'notes'];
+
+        const head = EXCEL_HEADERS.emom;
         const rows = history.map(w => {
-          const rpeText = getRpeText('emom', w.rpe);
-          return [
-            new Date(w.date).toISOString(),
-            w.secondsPerCycle,
-            w.cycles,
-            w.totalTime,
-            (rpeText || '').replace(/[,\n"]/g, ' '),
-            (w.notes || '').replace(/[,\n"]/g, ' ')
-          ];
+          const date = new Date(w.date).toLocaleDateString('en-US');
+          const secondsPerCycle = w.secondsPerCycle;
+          const completedCycles = w.cycles;
+          const rpe = extraerRPE(w.notes, w.rpe, 'emom');
+          const totalMinutes = Math.floor((w.totalTime || 0) / 60);
+          const notes = limpiarNotas(w.notes);
+
+          return [date, secondsPerCycle, completedCycles, rpe, totalMinutes, notes];
         });
-        const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csv, 'emom_history.csv');
+
+        const workbook = buildExcelWorkbook('emom', head, rows);
+        downloadCSV(workbook, EXCEL_FILE_NAMES.emom);
       },
       saveWorkout(data, notes = '', rpe = null) {
         const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes, rpe };
@@ -1449,21 +1587,22 @@
       exportHistory() {
         const history = this.history;
         if (history.length === 0) return;
-        const head = ['date', 'workSeconds', 'restSeconds', 'completedCycles', 'totalTimeSeconds', 'rpe', 'notes'];
+
+        const head = EXCEL_HEADERS.tabata;
         const rows = history.map(w => {
-          const rpeText = getRpeText('tabata', w.rpe);
-          return [
-            new Date(w.date).toISOString(),
-            w.work,
-            w.rest,
-            w.cycles,
-            w.totalTime,
-            (rpeText || '').replace(/[,\n"]/g, ' '),
-            (w.notes || '').replace(/[,\n"]/g, ' ')
-          ];
+          const date = new Date(w.date).toLocaleDateString('en-US');
+          const workSeconds = w.work;
+          const restSeconds = w.rest;
+          const cycles = w.cycles;
+          const rpe = extraerRPE(w.notes, w.rpe, 'tabata');
+          const totalMinutes = Math.floor((w.totalTime || 0) / 60);
+          const notes = limpiarNotas(w.notes);
+
+          return [date, workSeconds, restSeconds, cycles, rpe, totalMinutes, notes];
         });
-        const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csv, 'tabata_history.csv');
+
+        const workbook = buildExcelWorkbook('tabata', head, rows);
+        downloadCSV(workbook, EXCEL_FILE_NAMES.tabata);
       },
       saveWorkout(notes = '', rpe = null) {
         if (!this.currentWorkout) return;
@@ -2074,21 +2213,38 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'finalTime', 'timeCapMinutes', 'lapsCount', 'laps', 'rpe', 'notes'];
+        const maxLapCount = history.reduce((max, w) => {
+          const lapTotal = Array.isArray(w.laps) ? w.laps.length : 0;
+          return lapTotal > max ? lapTotal : max;
+        }, 0);
+
+        const lapHeaders = Array.from({ length: maxLapCount }, (_, index) => `Lap ${index + 1}`);
+        const head = [...EXCEL_HEADERS.fortime, ...lapHeaders];
+
         const rows = history.map(w => {
-          const rpeText = getRpeText('fortime', w.rpe);
-          return [
-            new Date(w.date).toISOString(),
-            this.formatTime(w.finalTime),
-            w.timeCap ? w.timeCap / 60000 : '',
-            w.laps.length,
-            w.laps.map(l => this.formatTime(l)).join('; '),
-            (rpeText || '').replace(/[,\n"]/g, ' '),
-            (w.notes || '').replace(/[,\n"]/g, ' ')
-          ];
+          const date = new Date(w.date).toLocaleDateString('en-US');
+          const tiempoFinal = typeof HelperUtil !== 'undefined' && typeof HelperUtil.formatTime === 'function'
+            ? HelperUtil.formatTime(w.finalTime)
+            : this.formatTime(w.finalTime);
+          const timeCap = w.timeCap ? Math.floor(w.timeCap / 60000) : 'N/A';
+          const rounds = w.laps?.length || 0;
+          const rpe = extraerRPE(w.notes, w.rpe, 'fortime');
+          const notes = limpiarNotas(w.notes);
+
+          const lapTimes = Array.from({ length: maxLapCount }, (_, index) => {
+            const lapValue = w.laps && index < w.laps.length ? w.laps[index] : null;
+            if (lapValue === null || lapValue === undefined) return '';
+            const formattedLap = typeof HelperUtil !== 'undefined' && typeof HelperUtil.formatTime === 'function'
+              ? HelperUtil.formatTime(lapValue)
+              : this.formatTime(lapValue);
+            return formattedLap;
+          });
+
+          return [date, tiempoFinal, timeCap, rounds, rpe, notes, ...lapTimes];
         });
-        const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csv, 'fortime_history.csv');
+
+        const workbook = buildExcelWorkbook('fortime', head, rows);
+        downloadCSV(workbook, EXCEL_FILE_NAMES.fortime);
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {
@@ -2668,19 +2824,19 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = ['date', 'durationMinutes', 'completedRounds', 'rpe', 'notes'];
+        const head = EXCEL_HEADERS.amrap;
         const rows = history.map(w => {
-          const rpeText = getRpeText('amrap', w.rpe);
-          return [
-            new Date(w.date).toISOString(),
-            w.duration / 60000,
-            w.rounds,
-            (rpeText || '').replace(/[,\n"]/g, ' '),
-            (w.notes || '').replace(/[,\n"]/g, ' ')
-          ];
+          const date = new Date(w.date).toLocaleDateString('en-US');
+          const durationMinutes = Math.floor((w.duration || 0) / 60000);
+          const rounds = w.rounds;
+          const rpe = extraerRPE(w.notes, w.rpe, 'amrap');
+          const notes = limpiarNotas(w.notes);
+
+          return [date, durationMinutes, rounds, rpe, notes];
         });
-        const csv = [head.join(','), ...rows.map(r => r.join(','))].join('\n');
-        downloadCSV(csv, 'amrap_history.csv');
+
+        const workbook = buildExcelWorkbook('amrap', head, rows);
+        downloadCSV(workbook, EXCEL_FILE_NAMES.amrap);
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {

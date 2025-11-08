@@ -2215,7 +2215,14 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = EXCEL_HEADERS.fortime;
+        const maxLapCount = history.reduce((max, w) => {
+          const lapTotal = Array.isArray(w.laps) ? w.laps.length : 0;
+          return lapTotal > max ? lapTotal : max;
+        }, 0);
+
+        const lapHeaders = Array.from({ length: maxLapCount }, (_, index) => `Lap ${index + 1}`);
+        const head = [...EXCEL_HEADERS.fortime, ...lapHeaders];
+
         const rows = history.map(w => {
           const date = new Date(w.date).toLocaleDateString('en-US');
           const tiempoFinal = typeof HelperUtil !== 'undefined' && typeof HelperUtil.formatTime === 'function'
@@ -2226,7 +2233,16 @@
           const rpe = extraerRPE(w.notes, w.rpe, 'fortime');
           const notes = limpiarNotas(w.notes);
 
-          return [date, tiempoFinal, timeCap, rounds, rpe, notes];
+          const lapTimes = Array.from({ length: maxLapCount }, (_, index) => {
+            const lapValue = w.laps && index < w.laps.length ? w.laps[index] : null;
+            if (lapValue === null || lapValue === undefined) return '';
+            const formattedLap = typeof HelperUtil !== 'undefined' && typeof HelperUtil.formatTime === 'function'
+              ? HelperUtil.formatTime(lapValue)
+              : this.formatTime(lapValue);
+            return formattedLap;
+          });
+
+          return [date, tiempoFinal, timeCap, rounds, rpe, notes, ...lapTimes];
         });
 
         const workbook = buildExcelWorkbook('fortime', head, rows);

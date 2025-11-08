@@ -243,18 +243,18 @@
     }
 
     // === HELPERS ===
-    const CSV_HEADERS = {
+    const EXCEL_HEADERS = {
       emom: ['Date', 'Seconds per Cycle', 'Completed Cycles', 'RPE', 'Total Time (min)', 'Notes'],
       tabata: ['Date', 'Work (sec)', 'Rest (sec)', 'Cycles', 'RPE', 'Total Duration (min)', 'Notes'],
       fortime: ['Date', 'Final Time (MM:SS)', 'Time Cap (min)', 'Total Rounds', 'RPE', 'Notes'],
       amrap: ['Date', 'Duration (min)', 'Completed Rounds', 'RPE', 'Notes']
     };
 
-    const CSV_FILE_NAMES = {
-      emom: 'historial-emom.xls',
-      tabata: 'historial-tabata.xls',
-      fortime: 'historial-fortime.xls',
-      amrap: 'historial-amrap.xls'
+    const EXCEL_FILE_NAMES = {
+      emom: 'Track record EMOM.xls',
+      tabata: 'Track record Tabata.xls',
+      fortime: 'Track record For Time.xls',
+      amrap: 'Track record AMRAP.xls'
     };
 
     function extraerRPE(notas, rpeKey = null, timerKey = null) {
@@ -283,18 +283,104 @@
       return notas.replace(/(?:RPE\s)?(\d{1,2}\/10)/i, '').trim();
     }
 
-    function formatRpeForExport(rpeValue) {
-      if (!rpeValue || rpeValue === 'N/A') return 'N/A';
-      return `="${rpeValue}"`;
+    function sanitizeForExport(value) {
+      return String(value ?? '').replace(/\r?\n/g, ' ').trim();
     }
 
-    function sanitizeForCsv(value) {
-      return String(value ?? '').replace(/;/g, ' ').replace(/\n/g, ' ');
+    function escapeXml(value) {
+      return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+    }
+
+    function sanitizeSheetName(name) {
+      const cleaned = String(name || 'Sheet')
+        .replace(/[\\/*?:\[\]]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!cleaned) return 'Sheet';
+      return cleaned.substring(0, 31);
+    }
+
+    function buildExcelCell(value) {
+      const sanitized = sanitizeForExport(value);
+      return `<Cell><Data ss:Type="String">${escapeXml(sanitized)}</Data></Cell>`;
+    }
+
+    function getRpeScaleEntries(timerKey) {
+      const config = RPE_CONFIG[timerKey];
+      if (!config) return [];
+
+      return config.options.map(key => {
+        const translated = sanitizeForExport(t(key));
+        const valueMatch = translated.match(/(\d{1,2}\/10)/);
+        const rawValue = valueMatch ? valueMatch[1] : translated;
+        let description = translated;
+
+        if (valueMatch) {
+          const split = translated.split(valueMatch[1]);
+          if (split.length > 1) {
+            description = split.slice(1).join(valueMatch[1]);
+          }
+          description = description.replace(/^[-–—:\s]+/, '').trim();
+        }
+
+        if (!description || description === rawValue) {
+          description = translated;
+        }
+
+        const value = rawValue.replace(/^RPE\s*/i, '').trim();
+
+        return {
+          value,
+          description
+        };
+      });
+    }
+
+    function buildExcelWorkbook(timerKey, headers, rows) {
+      const historySheetName = sanitizeSheetName(t('workout_history') || 'History');
+      const rpeSheetName = 'RPE Scale';
+      const rpeHeaderValue = t('rpe_scale_header_rpe') || 'RPE';
+      const rpeHeaderDescription = t('rpe_scale_header_description') || 'Description';
+      const rpeEntries = getRpeScaleEntries(timerKey);
+
+      const historyHeaderRow = `<Row>${headers.map(buildExcelCell).join('')}</Row>`;
+      const historyRows = rows
+        .map(row => `<Row>${row.map(buildExcelCell).join('')}</Row>`)
+        .join('');
+
+      const rpeHeaderRow = `<Row>${buildExcelCell(rpeHeaderValue)}${buildExcelCell(rpeHeaderDescription)}</Row>`;
+      const rpeRows = rpeEntries
+        .map(entry => `<Row>${buildExcelCell(entry.value)}${buildExcelCell(entry.description)}</Row>`)
+        .join('');
+
+      return [
+        '<?xml version="1.0"?>',
+        '<?mso-application progid="Excel.Sheet"?>',
+        '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">',
+        `<Worksheet ss:Name="${escapeXml(historySheetName)}">`,
+        '<Table>',
+        historyHeaderRow,
+        historyRows,
+        '</Table>',
+        '</Worksheet>',
+        `<Worksheet ss:Name="${escapeXml(rpeSheetName)}">`,
+        '<Table>',
+        rpeHeaderRow,
+        rpeRows,
+        '</Table>',
+        '</Worksheet>',
+        '</Workbook>'
+      ].join('');
     }
 
     function downloadCSV(csvContent, filename) {
       const bom = '\uFEFF';
-      const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([bom + csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
@@ -818,20 +904,20 @@
         const history = this.getHistory();
         if (history.length === 0) return;
 
-        const head = CSV_HEADERS.emom;
+        const head = EXCEL_HEADERS.emom;
         const rows = history.map(w => {
           const date = new Date(w.date).toLocaleDateString('en-US');
           const secondsPerCycle = w.secondsPerCycle;
           const completedCycles = w.cycles;
-          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'emom'));
+          const rpe = extraerRPE(w.notes, w.rpe, 'emom');
           const totalMinutes = Math.floor((w.totalTime || 0) / 60);
           const notes = limpiarNotas(w.notes);
 
-          return [date, secondsPerCycle, completedCycles, rpe, totalMinutes, notes].map(sanitizeForCsv);
+          return [date, secondsPerCycle, completedCycles, rpe, totalMinutes, notes];
         });
 
-        const csv = head.map(sanitizeForCsv).join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
-        downloadCSV(csv, CSV_FILE_NAMES.emom);
+        const workbook = buildExcelWorkbook('emom', head, rows);
+        downloadCSV(workbook, EXCEL_FILE_NAMES.emom);
       },
       saveWorkout(data, notes = '', rpe = null) {
         const workout = { id: Date.now(), date: new Date().toISOString(), ...data, notes, rpe };
@@ -1502,21 +1588,21 @@
         const history = this.history;
         if (history.length === 0) return;
 
-        const head = CSV_HEADERS.tabata;
+        const head = EXCEL_HEADERS.tabata;
         const rows = history.map(w => {
           const date = new Date(w.date).toLocaleDateString('en-US');
           const workSeconds = w.work;
           const restSeconds = w.rest;
           const cycles = w.cycles;
-          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'tabata'));
+          const rpe = extraerRPE(w.notes, w.rpe, 'tabata');
           const totalMinutes = Math.floor((w.totalTime || 0) / 60);
           const notes = limpiarNotas(w.notes);
 
-          return [date, workSeconds, restSeconds, cycles, rpe, totalMinutes, notes].map(sanitizeForCsv);
+          return [date, workSeconds, restSeconds, cycles, rpe, totalMinutes, notes];
         });
 
-        const csv = head.map(sanitizeForCsv).join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
-        downloadCSV(csv, CSV_FILE_NAMES.tabata);
+        const workbook = buildExcelWorkbook('tabata', head, rows);
+        downloadCSV(workbook, EXCEL_FILE_NAMES.tabata);
       },
       saveWorkout(notes = '', rpe = null) {
         if (!this.currentWorkout) return;
@@ -2127,7 +2213,7 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = CSV_HEADERS.fortime;
+        const head = EXCEL_HEADERS.fortime;
         const rows = history.map(w => {
           const date = new Date(w.date).toLocaleDateString('en-US');
           const tiempoFinal = typeof HelperUtil !== 'undefined' && typeof HelperUtil.formatTime === 'function'
@@ -2135,14 +2221,14 @@
             : this.formatTime(w.finalTime);
           const timeCap = w.timeCap ? Math.floor(w.timeCap / 60000) : 'N/A';
           const rounds = w.laps?.length || 0;
-          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'fortime'));
+          const rpe = extraerRPE(w.notes, w.rpe, 'fortime');
           const notes = limpiarNotas(w.notes);
 
-          return [date, tiempoFinal, timeCap, rounds, rpe, notes].map(sanitizeForCsv);
+          return [date, tiempoFinal, timeCap, rounds, rpe, notes];
         });
 
-        const csv = head.map(sanitizeForCsv).join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
-        downloadCSV(csv, CSV_FILE_NAMES.fortime);
+        const workbook = buildExcelWorkbook('fortime', head, rows);
+        downloadCSV(workbook, EXCEL_FILE_NAMES.fortime);
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {
@@ -2722,19 +2808,19 @@
       exportHistory() {
         const history = this.getHistory();
         if (history.length === 0) return;
-        const head = CSV_HEADERS.amrap;
+        const head = EXCEL_HEADERS.amrap;
         const rows = history.map(w => {
           const date = new Date(w.date).toLocaleDateString('en-US');
           const durationMinutes = Math.floor((w.duration || 0) / 60000);
           const rounds = w.rounds;
-          const rpe = formatRpeForExport(extraerRPE(w.notes, w.rpe, 'amrap'));
+          const rpe = extraerRPE(w.notes, w.rpe, 'amrap');
           const notes = limpiarNotas(w.notes);
 
-          return [date, durationMinutes, rounds, rpe, notes].map(sanitizeForCsv);
+          return [date, durationMinutes, rounds, rpe, notes];
         });
 
-        const csv = head.map(sanitizeForCsv).join(';') + '\n' + rows.map(r => r.join(';')).join('\n');
-        downloadCSV(csv, CSV_FILE_NAMES.amrap);
+        const workbook = buildExcelWorkbook('amrap', head, rows);
+        downloadCSV(workbook, EXCEL_FILE_NAMES.amrap);
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {

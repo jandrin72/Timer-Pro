@@ -45,6 +45,17 @@
         <p class="main-subtitle" data-i18n="landing_subtitle">Selecciona el tipo de entrenamiento que quieres realizar</p>
       </div>
 
+      <div class="profiles-section">
+        <button class="profiles-btn" onclick="openProfilesManager()">
+          <span class="profiles-icon">👤</span>
+          <span data-i18n="profiles">Perfiles</span>
+        </button>
+        <div class="current-profile-indicator" id="currentProfileIndicator">
+          <span class="profile-dot"></span>
+          <span id="currentProfileName"></span>
+        </div>
+      </div>
+
       <div class="timers-grid">
         <!-- EMOM Timer -->
         <div class="timer-card" onclick="showPage('emom')">
@@ -435,6 +446,173 @@
     </div>
   </div>
 
+  <!-- Profiles Modals -->
+  <div class="modal" id="profilesModal">
+    <div class="modal-content profiles-modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="profile_management">Gestión de Perfiles</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+
+      <div class="profiles-list-container">
+        <button class="btn-create-profile" id="createProfileBtn">
+          <span class="plus">+</span>
+          <span data-i18n="create_profile">Crear Perfil</span>
+        </button>
+
+        <div id="profilesList" class="profiles-list">
+          <!-- Dynamic profiles -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="profileDataModal">
+    <div class="modal-content profile-form-modal">
+      <div class="modal-header">
+        <h2 data-i18n="profile_data">Datos del Perfil</h2>
+        <button class="modal-close" data-modal-close>×</button>
+      </div>
+
+      <div class="form-sections">
+        <div class="form-section">
+          <h3 data-i18n="user_information">Información del Usuario</h3>
+
+          <div class="form-group">
+            <label for="profileUserName" data-i18n="name">Nombre</label>
+            <input type="text" id="profileUserName" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="profileAge" data-i18n="age">Edad</label>
+              <input type="number" id="profileAge" min="13" max="100">
+            </div>
+
+            <div class="form-group">
+              <label for="profileSex" data-i18n="biological_sex">Sexo Biológico</label>
+              <select id="profileSex">
+                <option value="" data-i18n="select_option">Seleccionar...</option>
+                <option value="male" data-i18n="sex_male">Masculino</option>
+                <option value="female" data-i18n="sex_female">Femenino</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 data-i18n="physical_data">Datos Físicos</h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="profileWeight" data-i18n="weight_kg">Peso (kg)</label>
+              <input type="number" id="profileWeight" min="20" max="300" step="0.1">
+            </div>
+
+            <div class="form-group">
+              <label for="profileHeight" data-i18n="height_cm">Altura (cm)</label>
+              <input type="number" id="profileHeight" min="100" max="250">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="profileFitnessLevel" data-i18n="fitness_level">Estado Físico</label>
+            <select id="profileFitnessLevel">
+              <option value="" data-i18n="select_option">Seleccionar...</option>
+              <option value="sedentary" data-i18n="fitness_sedentary"></option>
+              <option value="beginner" data-i18n="fitness_beginner"></option>
+              <option value="active" data-i18n="fitness_active"></option>
+              <option value="intermediate" data-i18n="fitness_intermediate"></option>
+              <option value="advanced" data-i18n="fitness_advanced"></option>
+              <option value="athlete" data-i18n="fitness_athlete"></option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="profileGoal" data-i18n="goal">Objetivo</label>
+            <select id="profileGoal">
+              <option value="" data-i18n="select_option">Seleccionar...</option>
+              <option value="weight_loss" data-i18n="goal_weight_loss"></option>
+              <option value="general_fitness" data-i18n="goal_general_fitness"></option>
+              <option value="endurance" data-i18n="goal_endurance"></option>
+              <option value="strength" data-i18n="goal_strength"></option>
+              <option value="mobility" data-i18n="goal_mobility"></option>
+              <option value="maintenance" data-i18n="goal_maintenance"></option>
+              <option value="rehabilitation" data-i18n="goal_rehabilitation"></option>
+              <option value="competition" data-i18n="goal_competition"></option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="profileTrainingDays" data-i18n="training_days">Días de Entrenamiento</label>
+            <select id="profileTrainingDays">
+              <option value="">-</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 data-i18n="training_preferences">Preferencias de Entrenamiento</h3>
+
+          <div class="form-group">
+            <label for="profileExperience" data-i18n="experience">Experiencia</label>
+            <select id="profileExperience">
+              <option value="" data-i18n="select_option">Seleccionar...</option>
+              <option value="none" data-i18n="experience_none"></option>
+              <option value="initiation" data-i18n="experience_initiation"></option>
+              <option value="basic" data-i18n="experience_basic"></option>
+              <option value="intermediate" data-i18n="experience_intermediate"></option>
+              <option value="advanced" data-i18n="experience_advanced"></option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label data-i18n="preferences">Preferencias</label>
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" name="preferences" value="bodyweight">
+                <span data-i18n="pref_bodyweight">Trabajo con peso corporal</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="preferences" value="kettlebell">
+                <span data-i18n="pref_kettlebell">Trabajo con Kettlebell y/o mancuernas</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="preferences" value="gym">
+                <span data-i18n="pref_gym">Trabajo en gimnasio convencional</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="preferences" value="cardio">
+                <span data-i18n="pref_cardio">Cardio intenso</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" name="preferences" value="mobility">
+                <span data-i18n="pref_mobility">Movilidad</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="profileLimitations" data-i18n="limitations">Limitaciones Físicas</label>
+            <textarea id="profileLimitations" rows="3" data-i18n-placeholder="limitations_placeholder"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="modal-btn secondary" data-modal-cancel data-i18n="cancel">Cancelar</button>
+        <button class="modal-btn primary" id="saveProfileDataBtn" data-i18n="save">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings Modal -->
   <div class="modal" id="settingsModal">
     <div class="modal-content">
@@ -730,6 +908,7 @@
   <script src="src/utils/translations.js"></script>
   <script src="src/utils/helpers.js"></script>
   <script src="src/utils/wakeLock.js"></script>
+  <script src="src/utils/profiles.js"></script>
 
   <!-- Aplicación original como fallback -->
   <script src="app.js"></script>
@@ -752,6 +931,11 @@
 
       if (window.StorageUtil) {
         console.log('✅ StorageUtil disponible');
+      }
+
+      if (window.ProfilesManager) {
+        ProfilesManager.initProfilesSystem();
+        console.log('✅ ProfilesManager inicializado');
       }
 
       console.log('✅ Timer Pro App con arquitectura modular lista');

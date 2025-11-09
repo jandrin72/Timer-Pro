@@ -9,6 +9,10 @@
   --success: #10b981;
   --btn: #2563eb;
   --btn-active: #1e40af;
+  --card-bg: rgba(30, 41, 59, 0.85);
+  --primary: var(--btn);
+  --primary-hover: var(--btn-active);
+  --primary-rgb: 37, 99, 235;
 
   /* Superficies y bordes */
   --surface: #1e293b;
@@ -29,6 +33,10 @@
   --success: #059669;
   --btn: #2563eb;
   --btn-active: #1e40af;
+  --card-bg: #ffffff;
+  --primary: var(--btn);
+  --primary-hover: var(--btn-active);
+  --primary-rgb: 37, 99, 235;
   --surface: #ffffff;
   --surface-2: #f1f5f9;
   --muted: #cbd5e1;

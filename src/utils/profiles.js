@@ -1,7 +1,26 @@
 // utils/profiles.js - Sistema de gestión de perfiles
 (function() {
   const TIMER_TYPES = ['emom', 'tabata', 'fortime', 'amrap'];
-  const COLOR_PALETTE = ['#3498db', '#e67e22', '#9b59b6', '#1abc9c', '#e74c3c', '#f1c40f', '#2ecc71', '#8e44ad'];
+  const DEFAULT_PROFILE_COLOR = '#22c55e';
+  const COLOR_PALETTE = [
+    DEFAULT_PROFILE_COLOR,
+    '#0ea5e9',
+    '#a855f7',
+    '#f97316',
+    '#14b8a6',
+    '#f59e0b',
+    '#ef4444',
+    '#6366f1'
+  ];
+  const LEGACY_DEFAULT_NAMES = [
+    'Perfil Principal',
+    'Main Profile',
+    'Hauptprofil',
+    'Profil principal',
+    'Profilo principale',
+    'Perfil principal',
+    '主要档案'
+  ];
 
   const translate = key => (window.TranslationUtil ? TranslationUtil.t(key) : key);
 
@@ -96,6 +115,74 @@
       });
     },
 
+    getDefaultNamePrefix() {
+      const rawPrefix = translate('profile_default_name_prefix');
+      if (rawPrefix && rawPrefix !== 'profile_default_name_prefix') {
+        return rawPrefix;
+      }
+      const fallback = translate('profile_name');
+      return fallback && fallback !== 'profile_name' ? fallback : 'User';
+    },
+
+    formatDefaultProfileName(number = 1) {
+      return `${this.getDefaultNamePrefix()} ${number}`.trim();
+    },
+
+    getNextDefaultProfileName() {
+      const prefix = this.getDefaultNamePrefix();
+      const profiles = this.getProfiles();
+      const existingNames = new Set(
+        profiles
+          .map(profile => (profile.name || '').trim().toLowerCase())
+          .filter(Boolean)
+      );
+
+      let counter = 1;
+      let candidate = '';
+      do {
+        candidate = `${prefix} ${counter}`.trim().toLowerCase();
+        counter += 1;
+      } while (existingNames.has(candidate));
+
+      return `${prefix} ${counter - 1}`.trim();
+    },
+
+    isLegacyDefaultName(name) {
+      if (!name) return true;
+      const normalized = name.trim().toLowerCase();
+      return LEGACY_DEFAULT_NAMES.some(legacy => legacy.trim().toLowerCase() === normalized);
+    },
+
+    ensureDefaultProfileNaming(profiles = null) {
+      const list = profiles || this.getProfiles();
+      if (!Array.isArray(list) || !list.length) return;
+
+      const defaultProfile = list.find(profile => profile.id === 'default');
+      if (!defaultProfile) return;
+
+      const expectedName = this.formatDefaultProfileName(1);
+      let requiresSave = false;
+
+      if (!defaultProfile.name || this.isLegacyDefaultName(defaultProfile.name)) {
+        defaultProfile.name = expectedName;
+        requiresSave = true;
+      }
+
+      if (!defaultProfile.color || defaultProfile.color === '#3498db') {
+        defaultProfile.color = DEFAULT_PROFILE_COLOR;
+        requiresSave = true;
+      }
+
+      if (requiresSave) {
+        this.saveProfiles(list);
+      }
+
+      const defaultProfileData = StorageUtil.getProfileData('default');
+      if (!defaultProfileData.name || this.isLegacyDefaultName(defaultProfileData.name)) {
+        StorageUtil.saveProfileData('default', { ...defaultProfileData, name: expectedName });
+      }
+    },
+
     migrateLegacyData() {
       const profiles = StorageUtil.getProfilesList();
       if (profiles && profiles.length) return;
@@ -119,16 +206,17 @@
       });
 
       if (migrated) {
-        const defaultName = translate('default_profile_name');
+        const defaultName = this.formatDefaultProfileName(1);
         const newProfile = {
           id: defaultId,
           name: defaultName,
-          color: '#3498db',
+          color: DEFAULT_PROFILE_COLOR,
           createdAt: new Date().toISOString()
         };
         StorageUtil.saveProfilesList([newProfile]);
         StorageUtil.saveProfileData(defaultId, { ...cloneProfileTemplate(), name: defaultName });
         StorageUtil.setCurrentProfile(defaultId);
+        this.ensureDefaultProfileNaming([newProfile]);
       }
     },
 
@@ -136,16 +224,17 @@
       let profiles = StorageUtil.getProfilesList();
       const settings = StorageUtil.getSettings();
       if (!profiles || !profiles.length) {
-        const defaultName = translate('default_profile_name');
+        const defaultName = this.formatDefaultProfileName(1);
         profiles = [{
           id: 'default',
           name: defaultName,
-          color: '#3498db',
+          color: DEFAULT_PROFILE_COLOR,
           createdAt: new Date().toISOString()
         }];
         StorageUtil.saveProfilesList(profiles);
         StorageUtil.saveProfileData('default', { ...cloneProfileTemplate(), name: defaultName });
       }
+      this.ensureDefaultProfileNaming(profiles);
       if (!settings.activeProfile || !profiles.find(p => p.id === settings.activeProfile)) {
         StorageUtil.setCurrentProfile(profiles[0].id);
       }
@@ -163,7 +252,7 @@
       const profiles = this.getProfiles();
       const usedColors = profiles.map(profile => profile.color).filter(Boolean);
       const available = COLOR_PALETTE.find(color => !usedColors.includes(color));
-      return available || COLOR_PALETTE[profiles.length % COLOR_PALETTE.length];
+      return available || COLOR_PALETTE[profiles.length % COLOR_PALETTE.length] || DEFAULT_PROFILE_COLOR;
     },
 
     generateId() {
@@ -204,7 +293,7 @@
 
         const dot = document.createElement('div');
         dot.className = 'profile-color-dot';
-        dot.style.backgroundColor = profile.color || '#3498db';
+        dot.style.backgroundColor = profile.color || DEFAULT_PROFILE_COLOR;
 
         const name = document.createElement('div');
         name.className = 'profile-name';
@@ -256,19 +345,19 @@
       const profiles = this.getProfiles();
       const activeProfile = profiles.find(profile => profile.id === activeId) || profiles[0];
       if (!activeProfile) return;
-      const name = activeProfile.name || translate('default_profile_name');
+      const name = activeProfile.name || this.formatDefaultProfileName(1);
       if (this.elements.currentProfileName) {
         this.elements.currentProfileName.textContent = name;
       }
       if (this.elements.profileDot) {
-        this.elements.profileDot.style.backgroundColor = activeProfile.color || '#3498db';
+        this.elements.profileDot.style.backgroundColor = activeProfile.color || DEFAULT_PROFILE_COLOR;
       }
     },
 
     createNewProfile() {
       const profiles = this.getProfiles();
       const id = this.generateId();
-      const defaultName = `${translate('profile_name')} ${profiles.length + 1}`;
+      const defaultName = this.getNextDefaultProfileName();
       const newProfile = {
         id,
         name: defaultName,

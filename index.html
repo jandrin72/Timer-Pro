@@ -22,6 +22,16 @@
     <div class="logo" onclick="showPage('home')" data-i18n="brand_title">Timer Pro</div>
     <button class="back-btn" id="backBtn" onclick="showPage('home')" style="display: none;" data-i18n="back_menu">← Volver al menú</button>
     <div class="controls">
+      <div class="profiles-section">
+        <button class="profiles-btn" onclick="openProfilesManager()">
+          <span class="profiles-icon">👤</span>
+          <span data-i18n="profiles">Perfiles</span>
+        </button>
+        <div class="current-profile-indicator" id="currentProfileIndicator">
+          <span class="profile-dot"></span>
+          <span id="currentProfileName"></span>
+        </div>
+      </div>
       <!-- Selector de idioma -->
       <select id="languageSelect">
         <option value="es">🇪🇸 Español</option>

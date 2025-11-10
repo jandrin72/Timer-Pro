@@ -182,6 +182,11 @@
       flex: 0 1 auto;
     }
 
+    #home .profiles-section,
+    #home .current-profile-indicator {
+      display: none !important;
+    }
+
     .profiles-btn {
       display: flex;
       align-items: center;
@@ -689,11 +694,34 @@
 
       .header .controls {
         gap: 8px;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .header .controls .profiles-section {
+        order: 1;
+      }
+
+      .header .controls .settings-btn {
+        order: 2;
+      }
+
+      .header .controls select {
+        order: 3;
       }
 
       .profiles-section {
         gap: 6px;
+      }
+
+      .header select {
+        height: 34px;
+      }
+
+      .header .settings-btn {
+        height: 34px;
+        width: 34px;
+        font-size: 16px;
       }
 
       .profiles-btn {
@@ -727,6 +755,53 @@
         padding: 16px 22px;
         font-size: 20px;
         min-width: 160px;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .header .controls {
+        gap: 6px;
+      }
+
+      .header .controls .profiles-section {
+        width: 100%;
+        justify-content: flex-end;
+      }
+
+      .header .controls .settings-btn {
+        align-self: flex-start;
+        margin-left: auto;
+      }
+
+      .header .controls select {
+        width: 100%;
+      }
+
+      .header select {
+        height: 32px;
+        font-size: 12px;
+      }
+
+      .header .settings-btn {
+        height: 32px;
+        width: 32px;
+        font-size: 16px;
+      }
+
+      .profiles-btn {
+        padding: 6px 10px;
+        height: 32px;
+        font-size: 12px;
+      }
+
+      .current-profile-indicator {
+        height: 32px;
+        padding: 0 10px;
+        font-size: 11px;
+      }
+
+      #currentProfileName {
+        max-width: 90px;
       }
     }
     /* Vista de entrenamiento simplificada */

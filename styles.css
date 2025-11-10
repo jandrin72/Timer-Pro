@@ -69,12 +69,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 12px 24px;
       padding: 12px 24px;
       position: sticky;
       top: 0;
       z-index: 100;
-      flex-wrap: nowrap;
-      gap: 16px;
     }
 
     .header .logo {
@@ -110,27 +110,33 @@
     .header .controls {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       justify-content: flex-end;
+      flex-wrap: nowrap;
     }
 
     .header select {
+      height: 36px;
+      padding: 0 12px;
       background: var(--surface-2);
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 6px 12px;
       font-size: 14px;
       cursor: pointer;
     }
 
     .header .settings-btn {
+      height: 36px;
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background: none;
-      border: none;
+      border: 1px solid transparent;
       color: var(--text);
-      font-size: 20px;
+      font-size: 18px;
       cursor: pointer;
-      padding: 6px;
       border-radius: 6px;
       transition: all 0.2s;
     }
@@ -138,6 +144,7 @@
     .header .settings-btn:hover {
       background: var(--surface-2);
       color: var(--accent);
+      border-color: var(--border);
     }
 
     /* Páginas */
@@ -161,6 +168,186 @@
       justify-content: center;
       padding: 40px 24px;
       gap: 48px;
+    }
+
+    /* Profiles Section */
+    .profiles-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: nowrap;
+      margin: 0;
+      padding: 0;
+      min-width: 0;
+      flex: 0 1 auto;
+    }
+
+    #home .profiles-section,
+    #home .current-profile-indicator {
+      display: none !important;
+    }
+
+    .profiles-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      height: 36px;
+      background: var(--accent);
+      color: var(--accent-contrast);
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      min-width: 0;
+    }
+
+    .profiles-btn:hover {
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .profiles-icon {
+      font-size: 20px;
+    }
+
+    .current-profile-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      height: 36px;
+      background: var(--surface-2);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text);
+      min-width: 0;
+      flex: 0 1 auto;
+    }
+
+    #currentProfileName {
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .profile-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .profiles-modal-content {
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .btn-create-profile {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 15px;
+      background: #ffffff;
+      color: var(--accent);
+      border: 2px dashed rgba(34, 197, 94, 0.4);
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-create-profile:hover {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(34, 197, 94, 0.6);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    }
+
+    .profile-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 15px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .profile-card.active {
+      border-color: var(--accent);
+      background: rgba(34, 197, 94, 0.12);
+    }
+
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .profile-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .profile-actions button {
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+      min-width: 0;
+      border: 1px solid transparent;
+    }
+
+    .profile-actions .btn-switch {
+      background: #ffffff;
+      color: #0f172a;
+      border-color: rgba(34, 197, 94, 0.25);
+    }
+
+    .profile-actions .btn-edit {
+      background: #bfdbfe;
+      color: #0f172a;
+      border-color: rgba(37, 99, 235, 0.4);
+    }
+
+    .profile-actions .btn-delete {
+      background: var(--danger);
+      color: #ffffff;
+      border-color: transparent;
+    }
+
+    .profile-actions .btn-switch:hover {
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15);
+    }
+
+    .profile-actions .btn-edit:hover {
+      background: #93c5fd;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+    }
+
+    .profile-actions .btn-delete:hover {
+      background: #b91c1c;
     }
 
     .main-title {
@@ -501,10 +688,62 @@
         font-size: 20px;
       }
 
+      .header {
+        gap: 8px 16px;
+      }
+
       .header .controls {
         gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
       }
-      
+
+      .header .controls .profiles-section {
+        order: 1;
+      }
+
+      .header .controls .settings-btn {
+        order: 2;
+      }
+
+      .header .controls select {
+        order: 3;
+      }
+
+      .profiles-section {
+        gap: 6px;
+      }
+
+      .header select {
+        height: 34px;
+      }
+
+      .header .settings-btn {
+        height: 34px;
+        width: 34px;
+        font-size: 16px;
+      }
+
+      .profiles-btn {
+        padding: 6px 12px;
+        height: 34px;
+        font-size: 13px;
+      }
+
+      .profiles-icon {
+        font-size: 18px;
+      }
+
+      .current-profile-indicator {
+        height: 34px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      #currentProfileName {
+        max-width: 100px;
+      }
+
       .app { padding: 16px; }
 
       #emom_app .timer, #tabata_app .timer { font-size: 100px; }
@@ -516,6 +755,71 @@
         padding: 16px 22px;
         font-size: 20px;
         min-width: 160px;
+      }
+    }
+
+@media (max-width: 540px) {
+      .header {
+        align-items: flex-start;
+      }
+
+      .header .controls {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, auto));
+        grid-template-areas:
+          "profiles profiles"
+          "settings language";
+        gap: 6px;
+        justify-items: end;
+        align-items: center;
+      }
+
+      .header .controls .profiles-section {
+        grid-area: profiles;
+        justify-self: end;
+        max-width: 100%;
+        justify-content: flex-end;
+      }
+
+      .header .controls .settings-btn {
+        grid-area: settings;
+        justify-self: end;
+        margin-left: 0;
+      }
+
+      .header .controls select {
+        grid-area: language;
+        width: min(100%, 160px);
+        justify-self: end;
+        min-width: 120px;
+      }
+
+      .header select {
+        height: 32px;
+        font-size: 12px;
+      }
+
+      .header .settings-btn {
+        height: 32px;
+        width: 32px;
+        font-size: 16px;
+      }
+
+      .profiles-btn {
+        padding: 6px 10px;
+        height: 32px;
+        font-size: 12px;
+      }
+
+      .current-profile-indicator {
+        height: 32px;
+        padding: 0 10px;
+        font-size: 11px;
+      }
+
+      #currentProfileName {
+        max-width: 88px;
       }
     }
     /* Vista de entrenamiento simplificada */

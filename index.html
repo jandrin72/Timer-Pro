@@ -55,6 +55,17 @@
         <p class="main-subtitle" data-i18n="landing_subtitle">Selecciona el tipo de entrenamiento que quieres realizar</p>
       </div>
 
+      <div class="profiles-section">
+        <button class="profiles-btn" onclick="openProfilesManager()">
+          <span class="profiles-icon">👤</span>
+          <span data-i18n="profiles">Perfiles</span>
+        </button>
+        <div class="current-profile-indicator" id="currentProfileIndicator">
+          <span class="profile-dot"></span>
+          <span id="currentProfileName"></span>
+        </div>
+      </div>
+
       <div class="timers-grid">
         <!-- EMOM Timer -->
         <div class="timer-card" onclick="showPage('emom')">

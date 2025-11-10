@@ -29,6 +29,7 @@
   const ProfilesManager = {
     elements: {},
     editingProfileId: null,
+    pendingProfile: null,
 
     initProfilesSystem() {
       if (!window.StorageUtil) return;
@@ -355,22 +356,16 @@
     },
 
     createNewProfile() {
-      const profiles = this.getProfiles();
       const id = this.generateId();
       const defaultName = this.getNextDefaultProfileName();
-      const newProfile = {
+      this.pendingProfile = {
         id,
         name: defaultName,
         color: this.pickColor(),
         createdAt: new Date().toISOString()
       };
-      profiles.push(newProfile);
-      this.saveProfiles(profiles);
-      StorageUtil.saveProfileData(id, { ...cloneProfileTemplate(), name: defaultName });
-      StorageUtil.setCurrentProfile(id);
-      this.updateCurrentProfileIndicator();
-      this.renderProfilesList();
-      this.openProfileDataModal(id);
+      const initialData = { ...cloneProfileTemplate(), name: defaultName };
+      this.openProfileDataModal(id, initialData, { preservePending: true });
     },
 
     switchProfile(profileId) {
@@ -410,9 +405,12 @@
       this.renderProfilesList();
     },
 
-    openProfileDataModal(profileId) {
+    openProfileDataModal(profileId, initialData = null, options = {}) {
+      if (!options.preservePending) {
+        this.pendingProfile = null;
+      }
       this.editingProfileId = profileId;
-      const data = StorageUtil.getProfileData(profileId);
+      const data = initialData || StorageUtil.getProfileData(profileId);
       this.populateForm(data);
       if (this.elements.profileDataModal) {
         this.elements.profileDataModal.classList.add('active');
@@ -424,6 +422,7 @@
         this.elements.profileDataModal.classList.remove('active');
       }
       this.editingProfileId = null;
+      this.pendingProfile = null;
     },
 
     populateForm(data) {
@@ -501,16 +500,29 @@
       }
       const formData = this.collectFormData();
       if (!formData) return;
+      const isNewProfile = this.pendingProfile && this.pendingProfile.id === this.editingProfileId;
       StorageUtil.saveProfileData(this.editingProfileId, formData);
       const profiles = this.getProfiles();
-      const profile = profiles.find(p => p.id === this.editingProfileId);
-      if (profile) {
-        profile.name = formData.name;
-        if (!profile.color) {
-          profile.color = this.pickColor();
-        }
+      if (isNewProfile) {
+        const newProfile = {
+          ...this.pendingProfile,
+          name: formData.name
+        };
+        profiles.push(newProfile);
         this.saveProfiles(profiles);
+        StorageUtil.setCurrentProfile(newProfile.id);
+        this.refreshAppsForProfileChange();
+      } else {
+        const profile = profiles.find(p => p.id === this.editingProfileId);
+        if (profile) {
+          profile.name = formData.name;
+          if (!profile.color) {
+            profile.color = this.pickColor();
+          }
+          this.saveProfiles(profiles);
+        }
       }
+      this.pendingProfile = null;
       this.updateCurrentProfileIndicator();
       this.renderProfilesList();
       this.closeProfileDataModal();

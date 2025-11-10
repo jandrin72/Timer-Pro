@@ -1,6 +1,19 @@
 // utils/storage.js - Gestión centralizada de localStorage
 class StorageUtil {
   static DEFAULT_HISTORY_LIMIT = 50;
+  static PROFILE_DATA_TEMPLATE = {
+    name: '',
+    age: null,
+    biologicalSex: '',
+    fitnessLevel: '',
+    goal: '',
+    trainingDays: null,
+    weight: null,
+    height: null,
+    experience: '',
+    limitations: '',
+    preferences: []
+  };
   static get(key, defaultValue = null) {
     try {
       const item = localStorage.getItem(key);
@@ -31,17 +44,72 @@ class StorageUtil {
     }
   }
 
+  // Gestión de perfiles
+  static getProfilesList() {
+    return this.get('profiles_list', []);
+  }
+
+  static saveProfilesList(profiles) {
+    return this.set('profiles_list', profiles);
+  }
+
+  static getCurrentProfileId() {
+    const settings = this.getSettings();
+    if (settings && settings.activeProfile) {
+      return settings.activeProfile;
+    }
+    return 'default';
+  }
+
+  static setCurrentProfile(profileId) {
+    const settings = this.getSettings();
+    settings.activeProfile = profileId;
+    return this.saveSettings(settings);
+  }
+
+  static getProfileData(profileId) {
+    const defaultData = { ...this.PROFILE_DATA_TEMPLATE };
+    const data = this.get(`profile_${profileId}_data`, defaultData);
+    return { ...defaultData, ...data, preferences: Array.isArray(data?.preferences) ? data.preferences : [] };
+  }
+
+  static saveProfileData(profileId, data) {
+    const payload = { ...this.PROFILE_DATA_TEMPLATE, ...data };
+    if (!Array.isArray(payload.preferences)) {
+      payload.preferences = [];
+    }
+    return this.set(`profile_${profileId}_data`, payload);
+  }
+
+  static removeProfileStorage(profileId) {
+    this.remove(`profile_${profileId}_data`);
+    const timerTypes = ['emom', 'tabata', 'fortime', 'amrap'];
+    timerTypes.forEach(type => {
+      this.remove(`profile_${profileId}_${type}_presets`);
+      this.remove(`profile_${profileId}_${type}_history`);
+    });
+  }
+
+  static getProfileKey(timerType, suffix, profileId = null) {
+    const resolvedProfile = profileId || this.getCurrentProfileId();
+    return `profile_${resolvedProfile}_${timerType}_${suffix}`;
+  }
+
   // Métodos específicos para la app
   static getPresets(timerType) {
-    return this.get(`${timerType}_presets`, []);
+    return this.get(this.getProfileKey(timerType, 'presets'), []);
   }
 
   static savePresets(timerType, presets) {
-    return this.set(`${timerType}_presets`, presets);
+    return this.set(this.getProfileKey(timerType, 'presets'), presets);
   }
 
   static getHistory(timerType) {
-    return this.get(`${timerType}_history`, []);
+    return this.get(this.getProfileKey(timerType, 'history'), []);
+  }
+
+  static saveHistory(timerType, history) {
+    return this.set(this.getProfileKey(timerType, 'history'), history);
   }
 
   static saveWorkout(timerType, workout) {
@@ -53,7 +121,7 @@ class StorageUtil {
       history.splice(historyLimit);
     }
 
-    return this.set(`${timerType}_history`, history);
+    return this.saveHistory(timerType, history);
   }
 
   static getHistoryLimit() {
@@ -75,6 +143,27 @@ class StorageUtil {
 
   static saveSettings(settings) {
     return this.set('app_settings', settings);
+  }
+
+  static getProfileContextForAI(profileId) {
+    const timerTypes = ['emom', 'tabata', 'fortime', 'amrap'];
+    const resolvedProfileId = profileId || this.getCurrentProfileId();
+    const profileData = this.getProfileData(resolvedProfileId);
+
+    const history = {};
+    const presets = {};
+
+    timerTypes.forEach(type => {
+      history[type] = this.get(this.getProfileKey(type, 'history', resolvedProfileId), []);
+      presets[type] = this.get(this.getProfileKey(type, 'presets', resolvedProfileId), []);
+    });
+
+    return {
+      user: profileData,
+      training_history: history,
+      current_presets: presets,
+      profile_id: resolvedProfileId
+    };
   }
 }
 

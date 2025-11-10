@@ -90,6 +90,9 @@
         currentLanguage = TranslationUtil.getLanguage();
       }
       translatePage();
+      if (window.ProfilesManager) {
+        ProfilesManager.handleLanguageChange();
+      }
       if(EmomApp.initialized) EmomApp.updateLanguage();
       if(TabataApp.initialized) TabataApp.updateLanguage();
       if(ForTimeApp.initialized) ForTimeApp.updateLanguage();
@@ -782,8 +785,16 @@
       },
       
       // Presets
-      getPresets() { return JSON.parse(localStorage.getItem('emom_presets') || '[]'); },
-      savePresets(presets) { localStorage.setItem('emom_presets', JSON.stringify(presets)); },
+      getPresets() {
+        return window.StorageUtil ? StorageUtil.getPresets('emom') : JSON.parse(localStorage.getItem('emom_presets') || '[]');
+      },
+      savePresets(presets) {
+        if (window.StorageUtil) {
+          StorageUtil.savePresets('emom', presets);
+        } else {
+          localStorage.setItem('emom_presets', JSON.stringify(presets));
+        }
+      },
       renderPresets() {
         const presets = this.getPresets();
         // Clear only the user presets, not the "add new" button if it were here
@@ -865,8 +876,16 @@
       },
       
       // History
-      getHistory() { return JSON.parse(localStorage.getItem('emom_history') || '[]'); },
-      saveHistory(history) { localStorage.setItem('emom_history', JSON.stringify(history)); },
+      getHistory() {
+        return window.StorageUtil ? StorageUtil.getHistory('emom') : JSON.parse(localStorage.getItem('emom_history') || '[]');
+      },
+      saveHistory(history) {
+        if (window.StorageUtil) {
+          StorageUtil.saveHistory('emom', history);
+        } else {
+          localStorage.setItem('emom_history', JSON.stringify(history));
+        }
+      },
       loadHistory() {
         const history = this.getHistory();
         this.els.totalWorkouts.textContent = history.length;
@@ -1029,6 +1048,7 @@
         this.handleTargetInputChange();
       },
     };
+    window.EmomApp = EmomApp;
 
     // === TABATA APP LOGIC ===
     const TabataApp = {
@@ -1047,8 +1067,13 @@
       init() {
         if(this.initialized) return;
         this.cacheDOMElements();
-        this.history = JSON.parse(localStorage.getItem('tabata_history') || '[]');
-        this.customPresets = JSON.parse(localStorage.getItem('tabata_presets') || '[]');
+        if (window.StorageUtil) {
+          this.history = StorageUtil.getHistory('tabata');
+          this.customPresets = StorageUtil.getPresets('tabata');
+        } else {
+          this.history = JSON.parse(localStorage.getItem('tabata_history') || '[]');
+          this.customPresets = JSON.parse(localStorage.getItem('tabata_presets') || '[]');
+        }
         this.setupEventListeners();
         this.updateUI();
         this.renderCustomPresets();
@@ -1517,6 +1542,31 @@
             </div>
           </div>`).join('');
       },
+      persistPresets() {
+        if (window.StorageUtil) {
+          StorageUtil.savePresets('tabata', this.customPresets);
+        } else {
+          localStorage.setItem('tabata_presets', JSON.stringify(this.customPresets));
+        }
+      },
+      persistHistory() {
+        if (window.StorageUtil) {
+          StorageUtil.saveHistory('tabata', this.history);
+        } else {
+          localStorage.setItem('tabata_history', JSON.stringify(this.history));
+        }
+      },
+      reloadProfileData() {
+        if (window.StorageUtil) {
+          this.history = StorageUtil.getHistory('tabata');
+          this.customPresets = StorageUtil.getPresets('tabata');
+        } else {
+          this.history = JSON.parse(localStorage.getItem('tabata_history') || '[]');
+          this.customPresets = JSON.parse(localStorage.getItem('tabata_presets') || '[]');
+        }
+        this.renderCustomPresets();
+        this.loadHistory();
+      },
       openPresetModal(index = -1) {
         this.editingPresetIndex = index;
         if (index > -1 && this.customPresets[index]) {
@@ -1547,13 +1597,13 @@
         } else {
           this.customPresets.push(preset);
         }
-        localStorage.setItem('tabata_presets', JSON.stringify(this.customPresets));
+        this.persistPresets();
         this.renderCustomPresets();
         this.closeAllModals();
       },
       deletePreset(index) {
           this.customPresets.splice(index, 1);
-          localStorage.setItem('tabata_presets', JSON.stringify(this.customPresets));
+          this.persistPresets();
           this.renderCustomPresets();
       },
 
@@ -1610,19 +1660,23 @@
         this.currentWorkout.rpe = rpe || null;
         this.history.unshift(this.currentWorkout);
         if (this.history.length > 50) this.history.pop();
-        localStorage.setItem('tabata_history', JSON.stringify(this.history));
+        this.persistHistory();
         this.loadHistory();
       },
       clearHistory() {
         if (confirm(t('confirm_clear_history'))) {
-          localStorage.removeItem('tabata_history');
+          if (window.StorageUtil) {
+            StorageUtil.saveHistory('tabata', []);
+          } else {
+            localStorage.removeItem('tabata_history');
+          }
           this.history = [];
           this.loadHistory();
         }
       },
       deleteWorkout(id) {
           this.history = this.history.filter(w => w.id !== id);
-          localStorage.setItem('tabata_history', JSON.stringify(this.history));
+          this.persistHistory();
           this.loadHistory();
       },
 
@@ -1650,7 +1704,7 @@
           if (workout) {
             workout.notes = notes;
             workout.rpe = rpeValue;
-            localStorage.setItem('tabata_history', JSON.stringify(this.history));
+            this.persistHistory();
             if (this.currentWorkout && this.currentWorkout.id === workoutId) {
               this.currentWorkout.notes = notes;
               this.currentWorkout.rpe = rpeValue;
@@ -1712,6 +1766,7 @@
         }
       }
     };
+    window.TabataApp = TabataApp;
 
     // === FOR TIME APP LOGIC ===
     const ForTimeApp = {
@@ -2099,8 +2154,16 @@
       },
       
       // Presets
-      getPresets() { return JSON.parse(localStorage.getItem('fortime_presets') || '[]'); },
-      savePresets(presets) { localStorage.setItem('fortime_presets', JSON.stringify(presets)); },
+      getPresets() {
+        return window.StorageUtil ? StorageUtil.getPresets('fortime') : JSON.parse(localStorage.getItem('fortime_presets') || '[]');
+      },
+      savePresets(presets) {
+        if (window.StorageUtil) {
+          StorageUtil.savePresets('fortime', presets);
+        } else {
+          localStorage.setItem('fortime_presets', JSON.stringify(presets));
+        }
+      },
       renderPresets() {
         const presets = this.getPresets();
         this.els.presetsContainer.innerHTML = '';
@@ -2177,8 +2240,16 @@
       },
       
       // History
-      getHistory() { return JSON.parse(localStorage.getItem('fortime_history') || '[]'); },
-      saveHistory(history) { localStorage.setItem('fortime_history', JSON.stringify(history)); },
+      getHistory() {
+        return window.StorageUtil ? StorageUtil.getHistory('fortime') : JSON.parse(localStorage.getItem('fortime_history') || '[]');
+      },
+      saveHistory(history) {
+        if (window.StorageUtil) {
+          StorageUtil.saveHistory('fortime', history);
+        } else {
+          localStorage.setItem('fortime_history', JSON.stringify(history));
+        }
+      },
       loadHistory() {
         const history = this.getHistory();
         this.els.totalWorkouts.textContent = history.length;
@@ -2358,8 +2429,9 @@
           }
       },
     };
+    window.ForTimeApp = ForTimeApp;
 
-       // === AMRAP APP LOGIC ===
+    // === AMRAP APP LOGIC ===
     const AmrapApp = {
       // State
       duration: 600000, // 10 minutes in ms
@@ -2718,8 +2790,16 @@
       },
       
       // Presets
-      getPresets() { return JSON.parse(localStorage.getItem('amrap_presets') || '[]'); },
-      savePresets(presets) { localStorage.setItem('amrap_presets', JSON.stringify(presets)); },
+      getPresets() {
+        return window.StorageUtil ? StorageUtil.getPresets('amrap') : JSON.parse(localStorage.getItem('amrap_presets') || '[]');
+      },
+      savePresets(presets) {
+        if (window.StorageUtil) {
+          StorageUtil.savePresets('amrap', presets);
+        } else {
+          localStorage.setItem('amrap_presets', JSON.stringify(presets));
+        }
+      },
       renderPresets() {
         const presets = this.getPresets();
         this.els.presetsContainer.innerHTML = '';
@@ -2795,8 +2875,16 @@
       },
       
       // History
-      getHistory() { return JSON.parse(localStorage.getItem('amrap_history') || '[]'); },
-      saveHistory(history) { localStorage.setItem('amrap_history', JSON.stringify(history)); },
+      getHistory() {
+        return window.StorageUtil ? StorageUtil.getHistory('amrap') : JSON.parse(localStorage.getItem('amrap_history') || '[]');
+      },
+      saveHistory(history) {
+        if (window.StorageUtil) {
+          StorageUtil.saveHistory('amrap', history);
+        } else {
+          localStorage.setItem('amrap_history', JSON.stringify(history));
+        }
+      },
       loadHistory() {
         const history = this.getHistory();
         this.els.totalWorkouts.textContent = history.length;
@@ -2947,6 +3035,7 @@
           }
       },
     };
+    window.AmrapApp = AmrapApp;
 
 
     // === GLOBAL INITIALIZATION ===

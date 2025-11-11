@@ -12,7 +12,7 @@
   const CONFIG = {
     // IMPORTANTE: Reemplazar con tu API key real de Gemini
     // Obtener en: https://aistudio.google.com/app/apikey
-    GEMINI_API_KEY: 'AIzaSy...', // <-- CAMBIAR ESTO
+    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // <-- CAMBIAR ESTO
 
     GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
     GEMINI_MODEL_ID: 'gemini-2.5-flash-lite',

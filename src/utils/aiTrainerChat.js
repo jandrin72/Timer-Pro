@@ -1,5 +1,6 @@
 /**
  * AI Trainer Chat - Entrenador personal con IA usando Gemini
+ * Versión: 2.0 - Noviembre 2025
  */
 
 (function() {
@@ -8,50 +9,49 @@
   // ============================================================================
   // CONFIGURACIÓN
   // ============================================================================
-
+  
   const CONFIG = {
     // IMPORTANTE: Reemplazar con tu API key real de Gemini
     // Obtener en: https://aistudio.google.com/app/apikey
-    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // <-- CAMBIAR ESTO
-
+    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // <-- TU KEY AQUÍ
+    
     GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
-    GEMINI_MODEL_ID: 'gemini-2.5-flash-lite',
-
+    GEMINI_MODEL_ID: 'gemini-2.0-flash', // 30 RPM, 1M TPM, 200 RPD - ÓPTIMO
+    
     MAX_HISTORY: 10, // Últimas 10 interacciones
     MAX_WORKOUTS: 5, // Últimos 5 entrenamientos
     RESPONSE_MAX_WORDS: 150,
-
+    
     // Mapeo de códigos de idioma a nombres completos
     LANGUAGE_NAMES: {
-      es: 'español',
-      en: 'English',
-      de: 'Deutsch',
-      fr: 'français',
-      it: 'italiano',
-      pt: 'português',
-      zh: '中文'
+      'es': 'español',
+      'en': 'English',
+      'de': 'Deutsch',
+      'fr': 'français',
+      'it': 'italiano',
+      'pt': 'português',
+      'zh': '中文'
     }
   };
 
   // ============================================================================
   // CLASE PRINCIPAL
   // ============================================================================
-
+  
   class AITrainerChat {
     constructor() {
       this.chatHistory = [];
       this.isOpen = false;
       this.isLoading = false;
       this.userPreferredLanguage = null;
-      this.cachedGeminiKey = null;
-
+      
       this.init();
     }
 
     // ------------------------------------------------------------------------
     // INICIALIZACIÓN
     // ------------------------------------------------------------------------
-
+    
     init() {
       this.createUI();
       this.bindEvents();
@@ -62,12 +62,9 @@
     // ------------------------------------------------------------------------
     // CREACIÓN DE UI
     // ------------------------------------------------------------------------
-
+    
     createUI() {
-      if (document.getElementById('aiChatFloatingBtn')) {
-        return;
-      }
-
+      // Botón flotante
       const floatingBtn = document.createElement('button');
       floatingBtn.id = 'aiChatFloatingBtn';
       floatingBtn.className = 'ai-chat-floating-btn';
@@ -75,9 +72,11 @@
       floatingBtn.setAttribute('aria-label', 'Abrir chat con entrenador IA');
       document.body.appendChild(floatingBtn);
 
+      // Modal de chat
       const modalHTML = `
         <div id="aiChatModal" class="ai-chat-modal">
           <div class="ai-chat-container">
+            <!-- Header -->
             <div class="ai-chat-header">
               <div class="ai-chat-header-info">
                 <span class="ai-chat-avatar">🤖</span>
@@ -89,13 +88,17 @@
               <button id="aiChatCloseBtn" class="ai-chat-close-btn">✕</button>
             </div>
 
-            <div id="aiChatMessages" class="ai-chat-messages"></div>
+            <!-- Mensajes -->
+            <div id="aiChatMessages" class="ai-chat-messages">
+              <!-- Los mensajes se insertan aquí dinámicamente -->
+            </div>
 
+            <!-- Input -->
             <div class="ai-chat-input-container">
-              <input
-                type="text"
-                id="aiChatInput"
-                class="ai-chat-input"
+              <input 
+                type="text" 
+                id="aiChatInput" 
+                class="ai-chat-input" 
                 placeholder="Escribe tu pregunta..."
                 autocomplete="off"
               />
@@ -106,14 +109,14 @@
           </div>
         </div>
       `;
-
+      
       document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
 
     // ------------------------------------------------------------------------
     // EVENT LISTENERS
     // ------------------------------------------------------------------------
-
+    
     bindEvents() {
       const floatingBtn = document.getElementById('aiChatFloatingBtn');
       const closeBtn = document.getElementById('aiChatCloseBtn');
@@ -134,17 +137,17 @@
       }
 
       if (input) {
-        input.addEventListener('keypress', event => {
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             this.sendMessage();
           }
         });
       }
 
       if (modal) {
-        modal.addEventListener('click', event => {
-          if (event.target === modal) {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
             this.closeChat();
           }
         });
@@ -154,17 +157,19 @@
     // ------------------------------------------------------------------------
     // GESTIÓN DE CHAT
     // ------------------------------------------------------------------------
-
+    
     openChat() {
       const modal = document.getElementById('aiChatModal');
       if (modal) {
         modal.classList.add('active');
         this.isOpen = true;
-
+        
+        // Si es la primera vez, enviar mensaje de bienvenida
         if (this.chatHistory.length === 0) {
           this.sendWelcomeMessage();
         }
-
+        
+        // Focus en input
         const input = document.getElementById('aiChatInput');
         if (input) {
           setTimeout(() => input.focus(), 100);
@@ -183,56 +188,73 @@
     // ------------------------------------------------------------------------
     // MENSAJES
     // ------------------------------------------------------------------------
-
-    async sendWelcomeMessage() {
+    
+    sendWelcomeMessage() {
       const appLang = this.getAppLanguage();
       const profile = this.getUserProfile();
       const userName = profile.name || 'atleta';
-
+      
       const welcomeMessages = {
-        es: `¡Hola ${userName}! 👋 Soy tu Coach Timer Pro. ¿En qué puedo ayudarte hoy?`,
-        en: `Hello ${userName}! 👋 I'm your Coach Timer Pro. How can I help you today?`,
-        de: `Hallo ${userName}! 👋 Ich bin dein Coach Timer Pro. Wie kann ich dir helfen?`,
-        fr: `Bonjour ${userName}! 👋 Je suis votre Coach Timer Pro. Comment puis-je vous aider?`,
-        it: `Ciao ${userName}! 👋 Sono il tuo Coach Timer Pro. Come posso aiutarti?`,
-        pt: `Olá ${userName}! 👋 Sou seu Coach Timer Pro. Como posso ajudar?`,
-        zh: `你好 ${userName}! 👋 我是你的 Coach Timer Pro。我能帮你什么?`
+        'es': `¡Hola ${userName}! 👋 Soy tu Coach Timer Pro. ¿En qué puedo ayudarte hoy?`,
+        'en': `Hello ${userName}! 👋 I'm your Coach Timer Pro. How can I help you today?`,
+        'de': `Hallo ${userName}! 👋 Ich bin dein Coach Timer Pro. Wie kann ich dir helfen?`,
+        'fr': `Bonjour ${userName}! 👋 Je suis votre Coach Timer Pro. Comment puis-je vous aider?`,
+        'it': `Ciao ${userName}! 👋 Sono il tuo Coach Timer Pro. Come posso aiutarti?`,
+        'pt': `Olá ${userName}! 👋 Sou seu Coach Timer Pro. Como posso ajudar?`,
+        'zh': `你好 ${userName}! 👋 我是你的 Coach Timer Pro。我能帮你什么?`
       };
-
-      const welcomeMsg = welcomeMessages[appLang] || welcomeMessages.en;
+      
+      const welcomeMsg = welcomeMessages[appLang] || welcomeMessages['en'];
       this.addMessage(welcomeMsg, 'assistant');
     }
 
     async sendMessage() {
       const input = document.getElementById('aiChatInput');
-      if (!input || this.isLoading) {
-        return;
-      }
+      if (!input || this.isLoading) return;
 
       const userMessage = input.value.trim();
-      if (!userMessage) {
-        return;
-      }
+      if (!userMessage) return;
 
+      // Limpiar input
       input.value = '';
+
+      // Añadir mensaje del usuario
       this.addMessage(userMessage, 'user');
+
+      // Mostrar "escribiendo..."
       this.showTypingIndicator();
+      this.isLoading = true;
 
       try {
-        this.isLoading = true;
+        // Llamar a Gemini
         const response = await this.callGemini(userMessage);
+        
+        // Quitar "escribiendo..."
         this.hideTypingIndicator();
+        
+        // Añadir respuesta
         this.addMessage(response, 'assistant');
+        
+        // Guardar en historial
         this.saveChatHistory();
+        
       } catch (error) {
-        console.error('Error al enviar mensaje:', error);
+        console.error('❌ Error al enviar mensaje:', error);
         this.hideTypingIndicator();
-        const lang = this.getAppLanguage();
-        const details = error?.message ? ` (${String(error.message)})` : '';
-        const errorMsg = lang === 'es'
-          ? `❌ Error al conectar con el servidor. Intenta de nuevo${details}.`
-          : `❌ Error connecting to server. Please try again${details}.`;
-        this.addMessage(errorMsg, 'assistant');
+        
+        const appLang = this.getAppLanguage();
+        const errorMessages = {
+          'es': '❌ Error al conectar con el servidor. Verifica tu API key y conexión.',
+          'en': '❌ Error connecting to server. Check your API key and connection.',
+          'de': '❌ Fehler beim Verbinden mit dem Server. Überprüfen Sie API-Schlüssel.',
+          'fr': '❌ Erreur de connexion au serveur. Vérifiez votre clé API.',
+          'it': '❌ Errore di connessione al server. Verifica la chiave API.',
+          'pt': '❌ Erro ao conectar ao servidor. Verifique sua chave API.',
+          'zh': '❌ 连接服务器错误。检查您的 API 密钥。'
+        };
+        
+        const errorMsg = errorMessages[appLang] || errorMessages['en'];
+        this.addMessage(`${errorMsg}\n\nDetalle: ${error.message}`, 'assistant');
       } finally {
         this.isLoading = false;
       }
@@ -240,41 +262,33 @@
 
     addMessage(text, role) {
       const messagesContainer = document.getElementById('aiChatMessages');
-      if (!messagesContainer) {
-        return;
-      }
+      if (!messagesContainer) return;
 
-      this.addMessageToDOM(text, role);
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `ai-chat-message ai-chat-message-${role}`;
+      
+      const bubble = document.createElement('div');
+      bubble.className = 'ai-chat-bubble';
+      bubble.textContent = text;
+      
+      messageDiv.appendChild(bubble);
+      messagesContainer.appendChild(messageDiv);
 
+      // Scroll al final
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      // Guardar en historial
       this.chatHistory.push({ role, text, timestamp: Date.now() });
+      
+      // Limitar historial
       if (this.chatHistory.length > CONFIG.MAX_HISTORY * 2) {
         this.chatHistory = this.chatHistory.slice(-CONFIG.MAX_HISTORY * 2);
       }
     }
 
-    addMessageToDOM(text, role) {
-      const messagesContainer = document.getElementById('aiChatMessages');
-      if (!messagesContainer) {
-        return;
-      }
-
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `ai-chat-message ai-chat-message-${role}`;
-
-      const bubble = document.createElement('div');
-      bubble.className = 'ai-chat-bubble';
-      bubble.textContent = text;
-
-      messageDiv.appendChild(bubble);
-      messagesContainer.appendChild(messageDiv);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-
     showTypingIndicator() {
       const messagesContainer = document.getElementById('aiChatMessages');
-      if (!messagesContainer || document.getElementById('aiTypingIndicator')) {
-        return;
-      }
+      if (!messagesContainer) return;
 
       const typingDiv = document.createElement('div');
       typingDiv.id = 'aiTypingIndicator';
@@ -284,7 +298,7 @@
           <span></span><span></span><span></span>
         </div>
       `;
-
+      
       messagesContainer.appendChild(typingDiv);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
@@ -299,29 +313,40 @@
     // ------------------------------------------------------------------------
     // LLAMADA A GEMINI
     // ------------------------------------------------------------------------
-
+    
     async callGemini(userMessage) {
-      const appLang = this.detectUserLanguage(userMessage);
+      const appLang = this.getAppLanguage();
       const profile = this.getUserProfile();
       const recentWorkouts = this.getRecentWorkouts();
       const systemPrompt = this.buildSystemPrompt(appLang, profile, recentWorkouts);
-
-      const apiKey = this.getGeminiApiKey();
-      if (!apiKey) {
+      
+      const apiKey = CONFIG.GEMINI_API_KEY;
+      
+      // Validar API key
+      if (!apiKey || apiKey.includes('AIzaSy...') || apiKey.length < 30) {
         const lang = appLang || 'en';
-        const placeholderMsg = lang === 'es'
-          ? 'Configura tu API key de Gemini en src/utils/aiTrainerChat.js'
-          : 'Configure your Gemini API key in src/utils/aiTrainerChat.js';
-        return placeholderMsg;
+        const keyErrorMessages = {
+          'es': '⚠️ API Key no configurada. Ve a src/utils/aiTrainerChat.js línea 17 y añade tu key de https://aistudio.google.com/app/apikey',
+          'en': '⚠️ API Key not configured. Go to src/utils/aiTrainerChat.js line 17 and add your key from https://aistudio.google.com/app/apikey',
+          'de': '⚠️ API-Schlüssel nicht konfiguriert. Gehe zu src/utils/aiTrainerChat.js Zeile 17.',
+          'fr': '⚠️ Clé API non configurée. Allez à src/utils/aiTrainerChat.js ligne 17.',
+          'it': '⚠️ Chiave API non configurata. Vai a src/utils/aiTrainerChat.js riga 17.',
+          'pt': '⚠️ Chave API não configurada. Vá para src/utils/aiTrainerChat.js linha 17.',
+          'zh': '⚠️ API 密钥未配置。转到 src/utils/aiTrainerChat.js 第 17 行。'
+        };
+        throw new Error(keyErrorMessages[lang] || keyErrorMessages['en']);
       }
 
+      // Preparar historial de conversación
       const conversationHistory = this.chatHistory
+        .filter(msg => msg.role !== 'system') // Filtrar mensajes de sistema
         .slice(-CONFIG.MAX_HISTORY * 2)
         .map(msg => ({
           role: msg.role === 'assistant' ? 'model' : 'user',
           parts: [{ text: msg.text }]
         }));
 
+      // Construir petición
       const requestBody = {
         contents: [
           ...conversationHistory,
@@ -331,7 +356,6 @@
           }
         ],
         systemInstruction: {
-          role: 'system',
           parts: [{ text: systemPrompt }]
         },
         generationConfig: {
@@ -342,44 +366,72 @@
         }
       };
 
-      const response = await fetch(
-        `${CONFIG.GEMINI_API_URL}/${CONFIG.GEMINI_MODEL_ID}:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestBody)
-        }
-      );
+      // URL completa
+      const apiUrl = `${CONFIG.GEMINI_API_URL}/${CONFIG.GEMINI_MODEL_ID}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      
+      console.log('🌐 Llamando a Gemini API...');
+      console.log('📍 Modelo:', CONFIG.GEMINI_MODEL_ID);
+      
+      // Hacer petición
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
 
+      // Leer respuesta
       const responseText = await response.text();
       let data = null;
+      
       try {
         data = responseText ? JSON.parse(responseText) : null;
       } catch (parseError) {
-        console.warn('No se pudo parsear la respuesta de Gemini:', parseError, responseText);
+        console.error('❌ Error parseando respuesta JSON:', parseError);
+        console.log('📄 Respuesta cruda:', responseText);
+        throw new Error(`Respuesta inválida de Gemini: ${responseText.substring(0, 100)}`);
       }
 
+      // Verificar errores HTTP
       if (!response.ok) {
         const apiError = data?.error?.message || data?.error || `HTTP ${response.status}`;
-        throw new Error(apiError);
+        console.error('❌ Error de API Gemini:', apiError);
+        console.log('📦 Respuesta completa:', data);
+        
+        // Mensajes de error más específicos
+        if (response.status === 400) {
+          throw new Error(`API Error 400: Petición inválida. Revisa el modelo (${CONFIG.GEMINI_MODEL_ID}) o formato. Detalle: ${apiError}`);
+        } else if (response.status === 401 || response.status === 403) {
+          throw new Error(`API Error ${response.status}: API Key inválida o sin permisos. Genera una nueva en https://aistudio.google.com/app/apikey`);
+        } else if (response.status === 429) {
+          throw new Error('API Error 429: Límite de peticiones excedido. Espera 1 minuto e intenta de nuevo.');
+        } else {
+          throw new Error(`API Error ${response.status}: ${apiError}`);
+        }
       }
 
-      const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        'Lo siento, no pude generar una respuesta.';
+      // Extraer respuesta del modelo
+      const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      
+      if (!aiResponse) {
+        console.error('❌ No se encontró texto en la respuesta:', data);
+        throw new Error('Gemini no devolvió texto. Puede estar bloqueado por filtros de contenido.');
+      }
 
+      console.log('✅ Respuesta recibida de Gemini');
       return aiResponse.trim();
     }
 
     // ------------------------------------------------------------------------
     // CONSTRUCCIÓN DEL PROMPT
     // ------------------------------------------------------------------------
-
+    
     buildSystemPrompt(appLang, profile, workouts) {
       const langName = CONFIG.LANGUAGE_NAMES[appLang] || 'English';
-
-      let profileInfo = 'PERFIL DEL USUARIO:\n';
+      
+      // Información del perfil
+      let profileInfo = `PERFIL DEL USUARIO:\n`;
       if (profile.name) profileInfo += `- Nombre: ${profile.name}\n`;
       if (profile.age) profileInfo += `- Edad: ${profile.age} años\n`;
       if (profile.biologicalSex) profileInfo += `- Sexo: ${profile.biologicalSex}\n`;
@@ -389,17 +441,18 @@
       if (profile.experience) profileInfo += `- Experiencia: ${profile.experience}\n`;
       if (profile.limitations) profileInfo += `- Limitaciones: ${profile.limitations}\n`;
 
-      let workoutsInfo = '\nÚLTIMOS ENTRENAMIENTOS:\n';
-      if (!workouts.length) {
+      // Últimos entrenamientos
+      let workoutsInfo = `\nÚLTIMOS ENTRENAMIENTOS:\n`;
+      if (workouts.length === 0) {
         workoutsInfo += '- Aún no hay entrenamientos registrados\n';
       } else {
-        workouts.forEach((workout, index) => {
-          const date = workout.timestamp ? new Date(workout.timestamp).toLocaleDateString() : 'N/A';
-          workoutsInfo += `${index + 1}. ${date}: ${workout.type.toUpperCase()} | `;
-          workoutsInfo += `${workout.config || 'N/A'} | `;
-          workoutsInfo += `${workout.completed ? 'Completado' : 'No completado'} | `;
-          if (workout.rpe) workoutsInfo += `RPE ${workout.rpe}/10 | `;
-          if (workout.notes) workoutsInfo += `"${workout.notes}"`;
+        workouts.forEach((w, i) => {
+          const date = new Date(w.timestamp).toLocaleDateString();
+          workoutsInfo += `${i + 1}. ${date}: ${w.type.toUpperCase()} | `;
+          workoutsInfo += `${w.config || 'N/A'} | `;
+          workoutsInfo += `${w.completed ? 'Completado' : 'No completado'} | `;
+          if (w.rpe) workoutsInfo += `RPE ${w.rpe}/10 | `;
+          if (w.notes) workoutsInfo += `"${w.notes}"`;
           workoutsInfo += '\n';
         });
       }
@@ -439,172 +492,72 @@ EJEMPLOS DE TONO:
 ❌ Incorrecto: "Como tu entrenador te digo que hagas burpees todos los días sin descanso..."
 
 RECUERDA: Eres un coach real, no un chatbot genérico. Usa el contexto del usuario para personalizar cada respuesta.
-      `.trim();
-    }
-
-    getGeminiApiKey() {
-      if (this.cachedGeminiKey) {
-        return this.cachedGeminiKey;
-      }
-
-      const directKey = (CONFIG.GEMINI_API_KEY || '').trim();
-      if (directKey && directKey !== 'AIzaSy...') {
-        this.cachedGeminiKey = directKey;
-        return directKey;
-      }
-
-      const globalKey = typeof window !== 'undefined' && window.__TIMER_PRO_GEMINI_KEY
-        ? String(window.__TIMER_PRO_GEMINI_KEY).trim()
-        : '';
-      if (globalKey) {
-        this.cachedGeminiKey = globalKey;
-        return globalKey;
-      }
-
-      try {
-        const storedKey = localStorage.getItem('timerPro.geminiApiKey');
-        if (storedKey) {
-          this.cachedGeminiKey = storedKey.trim();
-          return this.cachedGeminiKey;
-        }
-      } catch (error) {
-        console.warn('No se pudo leer la API key guardada en localStorage:', error);
-      }
-
-      return null;
+`.trim();
     }
 
     // ------------------------------------------------------------------------
     // OBTENCIÓN DE DATOS
     // ------------------------------------------------------------------------
-
-    detectUserLanguage(userMessage) {
-      if (this.userPreferredLanguage) {
-        return this.userPreferredLanguage;
-      }
-
-      const messageLang = this.detectLanguageFromMessage(userMessage);
-      const appLang = this.getAppLanguage();
-
-      if (messageLang && messageLang !== appLang) {
-        this.userPreferredLanguage = messageLang;
-        return messageLang;
-      }
-
-      return appLang;
-    }
-
-    detectLanguageFromMessage(text) {
-      if (!text) {
-        return null;
-      }
-
-      const lang = this.getAppLanguage();
-      const hasAscii = /[a-z]/i.test(text);
-      const hasAccents = /[áéíóúñü]/i.test(text);
-      const hasGerman = /[äöüß]/i.test(text);
-      const hasFrench = /[çàèéêîôûëïü]/i.test(text);
-      const hasItalian = /[àèéìòù]/i.test(text);
-      const hasPortuguese = /[ãõáâéêíóôúç]/i.test(text);
-      const hasChinese = /[\u4e00-\u9fff]/.test(text);
-
-      if (hasChinese) return 'zh';
-      if (hasPortuguese) return 'pt';
-      if (hasItalian) return 'it';
-      if (hasFrench) return 'fr';
-      if (hasGerman) return 'de';
-      if (hasAccents && !hasGerman && !hasFrench && !hasItalian && !hasPortuguese) return 'es';
-      if (hasAscii) return 'en';
-      return lang;
-    }
-
+    
     getAppLanguage() {
-      if (this.userPreferredLanguage) {
-        return this.userPreferredLanguage;
-      }
-
       if (window.TranslationUtil && typeof window.TranslationUtil.getLanguage === 'function') {
-        try {
-          return window.TranslationUtil.getLanguage();
-        } catch (error) {
-          console.warn('Error obteniendo idioma de TranslationUtil:', error);
-        }
+        return window.TranslationUtil.getLanguage();
       }
-
       const navLang = navigator.language || navigator.userLanguage || 'en';
-      return (navLang || 'en').split('-')[0];
+      return navLang.split('-')[0];
     }
 
     getUserProfile() {
-      if (window.ProfilesManager && typeof window.ProfilesManager.getActiveProfileId === 'function') {
-        try {
-          const profileId = window.ProfilesManager.getActiveProfileId();
-          if (profileId) {
-            return this.getProfileDataById(profileId);
-          }
-        } catch (error) {
-          console.warn('Error obteniendo perfil de ProfilesManager:', error);
-        }
-      }
-
-      const currentProfileId = window.StorageUtil && typeof window.StorageUtil.getCurrentProfileId === 'function'
-        ? window.StorageUtil.getCurrentProfileId()
-        : 'default';
-      return this.getProfileDataById(currentProfileId);
-    }
-
-    getProfileDataById(profileId) {
       if (window.StorageUtil && typeof window.StorageUtil.getProfileData === 'function') {
+        const profileId = window.StorageUtil.getCurrentProfileId();
         return window.StorageUtil.getProfileData(profileId) || {};
       }
       return {};
     }
 
     getRecentWorkouts() {
-      if (!window.StorageUtil || typeof window.StorageUtil.getHistory !== 'function') {
-        return [];
-      }
+      if (!window.StorageUtil) return [];
 
       const timerTypes = ['emom', 'tabata', 'fortime', 'amrap'];
       const allWorkouts = [];
 
       timerTypes.forEach(type => {
         const history = window.StorageUtil.getHistory(type) || [];
-        history.forEach(entry => {
-          allWorkouts.push({
-            type,
-            ...entry
-          });
+        history.forEach(workout => {
+          allWorkouts.push({ type, ...workout });
         });
       });
 
-      allWorkouts.sort((a, b) => {
-        if (!a.timestamp) return 1;
-        if (!b.timestamp) return -1;
-        return b.timestamp - a.timestamp;
-      });
-
+      allWorkouts.sort((a, b) => b.timestamp - a.timestamp);
       return allWorkouts.slice(0, CONFIG.MAX_WORKOUTS);
     }
 
     // ------------------------------------------------------------------------
     // PERSISTENCIA
     // ------------------------------------------------------------------------
-
+    
     loadChatHistory() {
       try {
         const saved = localStorage.getItem('aiTrainerChatHistory');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            this.chatHistory = parsed;
-            this.chatHistory.forEach(message => {
-              this.addMessageToDOM(message.text, message.role);
+          this.chatHistory = parsed;
+          
+          const messagesContainer = document.getElementById('aiChatMessages');
+          if (messagesContainer && parsed.length > 0) {
+            parsed.forEach(msg => {
+              const messageDiv = document.createElement('div');
+              messageDiv.className = `ai-chat-message ai-chat-message-${msg.role}`;
+              const bubble = document.createElement('div');
+              bubble.className = 'ai-chat-bubble';
+              bubble.textContent = msg.text;
+              messageDiv.appendChild(bubble);
+              messagesContainer.appendChild(messageDiv);
             });
           }
         }
       } catch (error) {
-        console.warn('Error cargando historial de chat:', error);
+        console.warn('⚠️ Error cargando historial de chat:', error);
       }
     }
 
@@ -612,7 +565,7 @@ RECUERDA: Eres un coach real, no un chatbot genérico. Usa el contexto del usuar
       try {
         localStorage.setItem('aiTrainerChatHistory', JSON.stringify(this.chatHistory));
       } catch (error) {
-        console.warn('Error guardando historial de chat:', error);
+        console.warn('⚠️ Error guardando historial de chat:', error);
       }
     }
 
@@ -630,12 +583,10 @@ RECUERDA: Eres un coach real, no un chatbot genérico. Usa el contexto del usuar
   // ============================================================================
   // INICIALIZACIÓN AUTOMÁTICA
   // ============================================================================
-
+  
   function initAIChat() {
     setTimeout(() => {
-      if (!window.aiTrainerChat) {
-        window.aiTrainerChat = new AITrainerChat();
-      }
+      window.aiTrainerChat = new AITrainerChat();
     }, 500);
   }
 
@@ -644,4 +595,5 @@ RECUERDA: Eres un coach real, no un chatbot genérico. Usa el contexto del usuar
   } else {
     initAIChat();
   }
+
 })();

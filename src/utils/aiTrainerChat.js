@@ -12,9 +12,10 @@
   const CONFIG = {
     // IMPORTANTE: Reemplazar con tu API key real de Gemini
     // Obtener en: https://aistudio.google.com/app/apikey
-    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // <-- CAMBIAR ESTO
+    GEMINI_API_KEY: 'AIzaSy...', // <-- CAMBIAR ESTO
 
-    GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+    GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
+    GEMINI_MODEL_ID: 'gemini-2.5-flash-lite',
 
     MAX_HISTORY: 10, // Últimas 10 interacciones
     MAX_WORKOUTS: 5, // Últimos 5 entrenamientos
@@ -42,6 +43,7 @@
       this.isOpen = false;
       this.isLoading = false;
       this.userPreferredLanguage = null;
+      this.cachedGeminiKey = null;
 
       this.init();
     }
@@ -226,9 +228,10 @@
         console.error('Error al enviar mensaje:', error);
         this.hideTypingIndicator();
         const lang = this.getAppLanguage();
+        const details = error?.message ? ` (${String(error.message)})` : '';
         const errorMsg = lang === 'es'
-          ? '❌ Error al conectar con el servidor. Intenta de nuevo.'
-          : '❌ Error connecting to server. Please try again.';
+          ? `❌ Error al conectar con el servidor. Intenta de nuevo${details}.`
+          : `❌ Error connecting to server. Please try again${details}.`;
         this.addMessage(errorMsg, 'assistant');
       } finally {
         this.isLoading = false;
@@ -303,6 +306,15 @@
       const recentWorkouts = this.getRecentWorkouts();
       const systemPrompt = this.buildSystemPrompt(appLang, profile, recentWorkouts);
 
+      const apiKey = this.getGeminiApiKey();
+      if (!apiKey) {
+        const lang = appLang || 'en';
+        const placeholderMsg = lang === 'es'
+          ? 'Configura tu API key de Gemini en src/utils/aiTrainerChat.js'
+          : 'Configure your Gemini API key in src/utils/aiTrainerChat.js';
+        return placeholderMsg;
+      }
+
       const conversationHistory = this.chatHistory
         .slice(-CONFIG.MAX_HISTORY * 2)
         .map(msg => ({
@@ -319,6 +331,7 @@
           }
         ],
         systemInstruction: {
+          role: 'system',
           parts: [{ text: systemPrompt }]
         },
         generationConfig: {
@@ -329,16 +342,8 @@
         }
       };
 
-      if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY === 'AIzaSy...') {
-        const lang = appLang || 'en';
-        const placeholderMsg = lang === 'es'
-          ? 'Configura tu API key de Gemini en src/utils/aiTrainerChat.js'
-          : 'Configure your Gemini API key in src/utils/aiTrainerChat.js';
-        return placeholderMsg;
-      }
-
       const response = await fetch(
-        `${CONFIG.GEMINI_API_URL}?key=${CONFIG.GEMINI_API_KEY}`,
+        `${CONFIG.GEMINI_API_URL}/${CONFIG.GEMINI_MODEL_ID}:generateContent?key=${encodeURIComponent(apiKey)}`,
         {
           method: 'POST',
           headers: {
@@ -348,12 +353,20 @@
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+      const responseText = await response.text();
+      let data = null;
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.warn('No se pudo parsear la respuesta de Gemini:', parseError, responseText);
       }
 
-      const data = await response.json();
-      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text ||
+      if (!response.ok) {
+        const apiError = data?.error?.message || data?.error || `HTTP ${response.status}`;
+        throw new Error(apiError);
+      }
+
+      const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text ||
         'Lo siento, no pude generar una respuesta.';
 
       return aiResponse.trim();
@@ -391,7 +404,8 @@
         });
       }
 
-      return `IDENTIDAD:
+      return `
+IDENTIDAD:
 Eres "Coach Timer Pro", un entrenador personal experto en CrossFit, fitness funcional y HIIT.
 Tu personalidad es motivadora, profesional, empática y específica.
 
@@ -424,7 +438,40 @@ EJEMPLOS DE TONO:
 ✅ Correcto: "Perfecto objetivo. Veo que en tu último EMOM notaste fatiga en ciclos finales. Te sugiero: 1) Pacing controlado..."
 ❌ Incorrecto: "Como tu entrenador te digo que hagas burpees todos los días sin descanso..."
 
-RECUERDA: Eres un coach real, no un chatbot genérico. Usa el contexto del usuario para personalizar cada respuesta.`;
+RECUERDA: Eres un coach real, no un chatbot genérico. Usa el contexto del usuario para personalizar cada respuesta.
+      `.trim();
+    }
+
+    getGeminiApiKey() {
+      if (this.cachedGeminiKey) {
+        return this.cachedGeminiKey;
+      }
+
+      const directKey = (CONFIG.GEMINI_API_KEY || '').trim();
+      if (directKey && directKey !== 'AIzaSy...') {
+        this.cachedGeminiKey = directKey;
+        return directKey;
+      }
+
+      const globalKey = typeof window !== 'undefined' && window.__TIMER_PRO_GEMINI_KEY
+        ? String(window.__TIMER_PRO_GEMINI_KEY).trim()
+        : '';
+      if (globalKey) {
+        this.cachedGeminiKey = globalKey;
+        return globalKey;
+      }
+
+      try {
+        const storedKey = localStorage.getItem('timerPro.geminiApiKey');
+        if (storedKey) {
+          this.cachedGeminiKey = storedKey.trim();
+          return this.cachedGeminiKey;
+        }
+      } catch (error) {
+        console.warn('No se pudo leer la API key guardada en localStorage:', error);
+      }
+
+      return null;
     }
 
     // ------------------------------------------------------------------------

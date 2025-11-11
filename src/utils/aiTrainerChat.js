@@ -1,6 +1,6 @@
 /**
  * AI Trainer Chat - Entrenador personal con IA usando Gemini
- * Versión: 2.3 - Chat por perfil + Limpiar + Lectura completa de entrenamientos
+ * Versión: 2.4 - Chat por perfil + Limpiar + Lectura completa + Fecha/Hora
  */
 
 (function() {
@@ -11,7 +11,7 @@
   // ============================================================================
   
   const CONFIG = {
-    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // TU API KEY
+    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // TU API KEY AQUÍ
     GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
     GEMINI_MODEL_ID: 'gemini-2.0-flash',
     
@@ -55,7 +55,7 @@
       this.loadCurrentProfile();
       this.loadChatHistory();
       this.setupProfileChangeListener();
-      console.log('✅ AI Trainer Chat inicializado (v2.3 - Lectura completa)');
+      console.log('✅ AI Trainer Chat inicializado (v2.4 - Fecha/Hora completa)');
     }
 
     // ------------------------------------------------------------------------
@@ -500,7 +500,7 @@
     }
 
     // ------------------------------------------------------------------------
-    // CONSTRUCCIÓN DEL PROMPT (MEJORADO v2.3)
+    // CONSTRUCCIÓN DEL PROMPT (v2.4 - CON FECHA Y HORA)
     // ------------------------------------------------------------------------
     
     buildSystemPrompt(appLang, profile, workouts) {
@@ -517,17 +517,33 @@
       if (profile.experience) profileInfo += `- Experiencia: ${profile.experience}\n`;
       if (profile.limitations) profileInfo += `- Limitaciones: ${profile.limitations}\n`;
 
-      // Últimos entrenamientos (MEJORADO - TODOS LOS DATOS)
+      // Últimos entrenamientos (CON FECHA Y HORA COMPLETAS)
       let workoutsInfo = `\nÚLTIMOS ENTRENAMIENTOS (detallados):\n`;
       
       if (workouts.length === 0) {
         workoutsInfo += '- Aún no hay entrenamientos registrados\n';
       } else {
         workouts.forEach((w, i) => {
-          const date = w.timestamp ? new Date(w.timestamp).toLocaleDateString() : 'Fecha desconocida';
+          // Formatear fecha y hora
+          let dateTimeStr = 'Fecha desconocida';
+          if (w.timestamp) {
+            const dateObj = new Date(w.timestamp);
+            const date = dateObj.toLocaleDateString('es-ES', { 
+              day: '2-digit', 
+              month: '2-digit', 
+              year: 'numeric' 
+            });
+            const time = dateObj.toLocaleTimeString('es-ES', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false 
+            });
+            dateTimeStr = `${date} a las ${time}`;
+          }
+          
           const type = w.type ? w.type.toUpperCase() : 'DESCONOCIDO';
           
-          workoutsInfo += `\n${i + 1}. ${date} - ${type}:\n`;
+          workoutsInfo += `\n${i + 1}. ${dateTimeStr} - ${type}:\n`;
           
           // Detalles específicos por tipo de timer
           switch(w.type) {
@@ -617,11 +633,15 @@ ${workoutsInfo}
 REGLAS:
 1. Máximo ${CONFIG.RESPONSE_MAX_WORDS} palabras
 2. 2-3 consejos específicos y accionables
-3. Menciona entrenamientos recientes si es relevante (usa los datos detallados arriba)
+3. Menciona entrenamientos recientes si es relevante (usa los datos detallados arriba, incluyendo fecha y hora)
 4. Máximo 2 emojis por mensaje
 5. Termina con motivación
 
-IMPORTANTE: Tienes TODOS los datos del entrenamiento (tiempos, laps, rounds, RPE, notas). Úsalos para dar feedback preciso.
+IMPORTANTE: 
+- Tienes TODOS los datos del entrenamiento (fecha, hora, tiempos, laps, rounds, RPE, notas)
+- Si el usuario pregunta "cuándo entrené" o "a qué hora", usa la fecha y hora exactas
+- Puedes calcular días transcurridos desde el último entreno
+- Si preguntan por un entreno específico de una fecha/hora, busca en la lista
 
 RECUERDA: Personaliza con el contexto del usuario.
 `.trim();

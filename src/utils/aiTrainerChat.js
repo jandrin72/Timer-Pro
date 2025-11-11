@@ -1,6 +1,6 @@
 /**
  * AI Trainer Chat - Entrenador personal con IA usando Gemini
- * Versión: 2.2 - Chat por perfil + Botón limpiar historial
+ * Versión: 2.3 - Chat por perfil + Limpiar + Lectura completa de entrenamientos
  */
 
 (function() {
@@ -11,7 +11,7 @@
   // ============================================================================
   
   const CONFIG = {
-    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // TU KEY
+    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // TU API KEY
     GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
     GEMINI_MODEL_ID: 'gemini-2.0-flash',
     
@@ -55,7 +55,7 @@
       this.loadCurrentProfile();
       this.loadChatHistory();
       this.setupProfileChangeListener();
-      console.log('✅ AI Trainer Chat inicializado (v2.2 - Botón limpiar)');
+      console.log('✅ AI Trainer Chat inicializado (v2.3 - Lectura completa)');
     }
 
     // ------------------------------------------------------------------------
@@ -140,7 +140,7 @@
       floatingBtn.setAttribute('aria-label', 'Abrir chat con entrenador IA');
       document.body.appendChild(floatingBtn);
 
-      // Modal de chat (CON BOTÓN LIMPIAR)
+      // Modal de chat
       const modalHTML = `
         <div id="aiChatModal" class="ai-chat-modal">
           <div class="ai-chat-container">
@@ -193,7 +193,7 @@
     bindEvents() {
       const floatingBtn = document.getElementById('aiChatFloatingBtn');
       const closeBtn = document.getElementById('aiChatCloseBtn');
-      const clearBtn = document.getElementById('aiChatClearBtn'); // NUEVO
+      const clearBtn = document.getElementById('aiChatClearBtn');
       const sendBtn = document.getElementById('aiChatSendBtn');
       const input = document.getElementById('aiChatInput');
       const modal = document.getElementById('aiChatModal');
@@ -206,7 +206,6 @@
         closeBtn.addEventListener('click', () => this.closeChat());
       }
 
-      // NUEVO: Evento botón limpiar
       if (clearBtn) {
         clearBtn.addEventListener('click', () => this.confirmClearHistory());
       }
@@ -234,7 +233,7 @@
     }
 
     // ------------------------------------------------------------------------
-    // NUEVO: LIMPIAR HISTORIAL CON CONFIRMACIÓN
+    // LIMPIAR HISTORIAL
     // ------------------------------------------------------------------------
     
     confirmClearHistory() {
@@ -264,26 +263,9 @@
       this.chatHistory = [];
       localStorage.removeItem(storageKey);
       this.clearChatUI();
-      
-      // Enviar mensaje de bienvenida automáticamente
       this.sendWelcomeMessage();
       
       console.log(`🗑️ Historial borrado para perfil ${this.currentProfileId}`);
-      
-      // Mensaje de confirmación visual
-      const appLang = this.getAppLanguage();
-      const successMessages = {
-        'es': '✅ Historial borrado correctamente',
-        'en': '✅ History cleared successfully',
-        'de': '✅ Verlauf erfolgreich gelöscht',
-        'fr': '✅ Historique effacé avec succès',
-        'it': '✅ Cronologia cancellata con successo',
-        'pt': '✅ Histórico excluído com sucesso',
-        'zh': '✅ 历史记录已成功清除'
-      };
-      
-      // Mostrar mensaje temporal (opcional)
-      console.log(successMessages[appLang] || successMessages['en']);
     }
 
     // ------------------------------------------------------------------------
@@ -518,12 +500,13 @@
     }
 
     // ------------------------------------------------------------------------
-    // CONSTRUCCIÓN DEL PROMPT
+    // CONSTRUCCIÓN DEL PROMPT (MEJORADO v2.3)
     // ------------------------------------------------------------------------
     
     buildSystemPrompt(appLang, profile, workouts) {
       const langName = CONFIG.LANGUAGE_NAMES[appLang] || 'English';
       
+      // Información del perfil
       let profileInfo = `PERFIL DEL USUARIO:\n`;
       if (profile.name) profileInfo += `- Nombre: ${profile.name}\n`;
       if (profile.age) profileInfo += `- Edad: ${profile.age} años\n`;
@@ -534,18 +517,88 @@
       if (profile.experience) profileInfo += `- Experiencia: ${profile.experience}\n`;
       if (profile.limitations) profileInfo += `- Limitaciones: ${profile.limitations}\n`;
 
-      let workoutsInfo = `\nÚLTIMOS ENTRENAMIENTOS:\n`;
+      // Últimos entrenamientos (MEJORADO - TODOS LOS DATOS)
+      let workoutsInfo = `\nÚLTIMOS ENTRENAMIENTOS (detallados):\n`;
+      
       if (workouts.length === 0) {
         workoutsInfo += '- Aún no hay entrenamientos registrados\n';
       } else {
         workouts.forEach((w, i) => {
-          const date = new Date(w.timestamp).toLocaleDateString();
-          workoutsInfo += `${i + 1}. ${date}: ${w.type.toUpperCase()} | `;
-          workoutsInfo += `${w.config || 'N/A'} | `;
-          workoutsInfo += `${w.completed ? 'Completado' : 'No completado'}`;
-          if (w.rpe) workoutsInfo += ` | RPE ${w.rpe}/10`;
-          if (w.notes) workoutsInfo += ` | "${w.notes}"`;
-          workoutsInfo += '\n';
+          const date = w.timestamp ? new Date(w.timestamp).toLocaleDateString() : 'Fecha desconocida';
+          const type = w.type ? w.type.toUpperCase() : 'DESCONOCIDO';
+          
+          workoutsInfo += `\n${i + 1}. ${date} - ${type}:\n`;
+          
+          // Detalles específicos por tipo de timer
+          switch(w.type) {
+            case 'emom':
+              if (w.cycles) workoutsInfo += `   • Ciclos completados: ${w.cycles}\n`;
+              if (w.secondsPerCycle) workoutsInfo += `   • Segundos por ciclo: ${w.secondsPerCycle}s\n`;
+              if (w.totalTime) {
+                const totalMin = Math.floor(w.totalTime / 60);
+                workoutsInfo += `   • Tiempo total: ${totalMin}min ${w.totalTime % 60}s\n`;
+              }
+              break;
+              
+            case 'tabata':
+              if (w.cycles) workoutsInfo += `   • Ciclos completados: ${w.cycles}\n`;
+              if (w.work) workoutsInfo += `   • Trabajo: ${w.work}s\n`;
+              if (w.rest) workoutsInfo += `   • Descanso: ${w.rest}s\n`;
+              if (w.totalTime) {
+                const totalMin = Math.floor(w.totalTime / 60);
+                workoutsInfo += `   • Duración total: ${totalMin}min ${w.totalTime % 60}s\n`;
+              }
+              break;
+              
+            case 'fortime':
+              if (w.finalTime !== undefined && w.finalTime !== null) {
+                const minutes = Math.floor(w.finalTime / 60000);
+                const seconds = Math.floor((w.finalTime % 60000) / 1000);
+                const centiseconds = Math.floor((w.finalTime % 1000) / 10);
+                workoutsInfo += `   • Tiempo final: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}\n`;
+              }
+              
+              if (w.timeCap) {
+                const capMin = Math.floor(w.timeCap / 60000);
+                workoutsInfo += `   • Time Cap: ${capMin}min\n`;
+              }
+              
+              if (w.laps && Array.isArray(w.laps) && w.laps.length > 0) {
+                workoutsInfo += `   • Laps completados: ${w.laps.length}\n`;
+                w.laps.forEach((lapTime, idx) => {
+                  const minutes = Math.floor(lapTime / 60000);
+                  const seconds = Math.floor((lapTime % 60000) / 1000);
+                  const centiseconds = Math.floor((lapTime % 1000) / 10);
+                  workoutsInfo += `     - Lap ${idx + 1}: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}\n`;
+                });
+              }
+              
+              // Estado de completado
+              if (w.finalTime && w.timeCap) {
+                const completado = w.finalTime < w.timeCap;
+                workoutsInfo += `   • Estado: ${completado ? 'Completado' : 'No completado (alcanzó time cap)'}\n`;
+              }
+              break;
+              
+            case 'amrap':
+              if (w.rounds) workoutsInfo += `   • Rondas completadas: ${w.rounds}\n`;
+              if (w.duration) {
+                const durationMin = Math.floor(w.duration / 60000);
+                workoutsInfo += `   • Duración: ${durationMin}min\n`;
+              }
+              break;
+          }
+          
+          // RPE (común para todos)
+          if (w.rpe) {
+            const rpeValue = this.extractRPEValue(w.rpe);
+            workoutsInfo += `   • RPE: ${rpeValue}/10\n`;
+          }
+          
+          // Notas (común para todos)
+          if (w.notes && w.notes.trim()) {
+            workoutsInfo += `   • Notas: "${w.notes.trim()}"\n`;
+          }
         });
       }
 
@@ -563,13 +616,30 @@ ${workoutsInfo}
 
 REGLAS:
 1. Máximo ${CONFIG.RESPONSE_MAX_WORDS} palabras
-2. 2-3 consejos específicos
-3. Menciona entrenamientos si es relevante
+2. 2-3 consejos específicos y accionables
+3. Menciona entrenamientos recientes si es relevante (usa los datos detallados arriba)
 4. Máximo 2 emojis por mensaje
 5. Termina con motivación
 
+IMPORTANTE: Tienes TODOS los datos del entrenamiento (tiempos, laps, rounds, RPE, notas). Úsalos para dar feedback preciso.
+
 RECUERDA: Personaliza con el contexto del usuario.
 `.trim();
+    }
+
+    // ------------------------------------------------------------------------
+    // FUNCIÓN AUXILIAR: Extraer valor RPE
+    // ------------------------------------------------------------------------
+    
+    extractRPEValue(rpeKey) {
+      if (!rpeKey) return 'N/A';
+      
+      // Si ya es un número, retornar
+      if (!isNaN(rpeKey)) return rpeKey;
+      
+      // Extraer número del string tipo "rpeemom8" o "RPE 8/10"
+      const match = String(rpeKey).match(/(\d{1,2})/);
+      return match ? match[1] : 'N/A';
     }
 
     // ------------------------------------------------------------------------

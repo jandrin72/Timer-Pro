@@ -1,6 +1,6 @@
 /**
  * AI Trainer Chat - Entrenador personal con IA usando Gemini
- * Versión: 2.1 - Chat independiente por perfil
+ * Versión: 2.2 - Chat por perfil + Botón limpiar historial
  */
 
 (function() {
@@ -40,7 +40,7 @@
       this.isOpen = false;
       this.isLoading = false;
       this.userPreferredLanguage = null;
-      this.currentProfileId = null; // NUEVO: Trackear perfil actual
+      this.currentProfileId = null;
       
       this.init();
     }
@@ -54,12 +54,12 @@
       this.bindEvents();
       this.loadCurrentProfile();
       this.loadChatHistory();
-      this.setupProfileChangeListener(); // NUEVO: Detectar cambios de perfil
-      console.log('✅ AI Trainer Chat inicializado (v2.1 - Chat por perfil)');
+      this.setupProfileChangeListener();
+      console.log('✅ AI Trainer Chat inicializado (v2.2 - Botón limpiar)');
     }
 
     // ------------------------------------------------------------------------
-    // NUEVO: GESTIÓN DE PERFILES
+    // GESTIÓN DE PERFILES
     // ------------------------------------------------------------------------
     
     loadCurrentProfile() {
@@ -74,20 +74,17 @@
     }
 
     getChatStorageKey() {
-      // Clave única por perfil: aiTrainerChat_perfil_abc123
       return `aiTrainerChat_perfil_${this.currentProfileId}`;
     }
 
     setupProfileChangeListener() {
-      // Detectar cambios de perfil mediante MutationObserver en el indicador
       const profileIndicator = document.getElementById('currentProfileName');
       
       if (profileIndicator) {
         const observer = new MutationObserver(() => {
           const newProfileId = this.getCurrentProfileId();
-          
           if (newProfileId !== this.currentProfileId) {
-            console.log(`🔄 Cambio de perfil detectado: ${this.currentProfileId} → ${newProfileId}`);
+            console.log(`🔄 Cambio de perfil: ${this.currentProfileId} → ${newProfileId}`);
             this.handleProfileSwitch(newProfileId);
           }
         });
@@ -99,7 +96,6 @@
         });
       }
 
-      // Fallback: Revisar cada 2 segundos (por si el MutationObserver falla)
       setInterval(() => {
         const newProfileId = this.getCurrentProfileId();
         if (newProfileId !== this.currentProfileId) {
@@ -109,21 +105,14 @@
     }
 
     handleProfileSwitch(newProfileId) {
-      // Guardar historial del perfil anterior
       if (this.currentProfileId) {
         this.saveChatHistory();
       }
 
-      // Actualizar perfil actual
       this.currentProfileId = newProfileId;
-
-      // Limpiar UI del chat
       this.clearChatUI();
-
-      // Cargar historial del nuevo perfil
       this.loadChatHistory();
 
-      // Si el chat está abierto, mostrar mensaje de bienvenida si no hay historial
       if (this.isOpen && this.chatHistory.length === 0) {
         this.sendWelcomeMessage();
       }
@@ -151,7 +140,7 @@
       floatingBtn.setAttribute('aria-label', 'Abrir chat con entrenador IA');
       document.body.appendChild(floatingBtn);
 
-      // Modal de chat
+      // Modal de chat (CON BOTÓN LIMPIAR)
       const modalHTML = `
         <div id="aiChatModal" class="ai-chat-modal">
           <div class="ai-chat-container">
@@ -164,7 +153,12 @@
                   <div class="ai-chat-subtitle" id="aiChatSubtitle">Tu entrenador personal IA</div>
                 </div>
               </div>
-              <button id="aiChatCloseBtn" class="ai-chat-close-btn">✕</button>
+              <div class="ai-chat-header-actions">
+                <button id="aiChatClearBtn" class="ai-chat-clear-btn" title="Limpiar historial">
+                  🗑️
+                </button>
+                <button id="aiChatCloseBtn" class="ai-chat-close-btn">✕</button>
+              </div>
             </div>
 
             <!-- Mensajes -->
@@ -199,6 +193,7 @@
     bindEvents() {
       const floatingBtn = document.getElementById('aiChatFloatingBtn');
       const closeBtn = document.getElementById('aiChatCloseBtn');
+      const clearBtn = document.getElementById('aiChatClearBtn'); // NUEVO
       const sendBtn = document.getElementById('aiChatSendBtn');
       const input = document.getElementById('aiChatInput');
       const modal = document.getElementById('aiChatModal');
@@ -209,6 +204,11 @@
 
       if (closeBtn) {
         closeBtn.addEventListener('click', () => this.closeChat());
+      }
+
+      // NUEVO: Evento botón limpiar
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => this.confirmClearHistory());
       }
 
       if (sendBtn) {
@@ -234,6 +234,59 @@
     }
 
     // ------------------------------------------------------------------------
+    // NUEVO: LIMPIAR HISTORIAL CON CONFIRMACIÓN
+    // ------------------------------------------------------------------------
+    
+    confirmClearHistory() {
+      const appLang = this.getAppLanguage();
+      const profile = this.getUserProfile();
+      const profileName = profile.name || 'este perfil';
+      
+      const confirmMessages = {
+        'es': `¿Borrar todo el historial de conversación con ${profileName}?\n\nEsta acción no se puede deshacer.`,
+        'en': `Delete all conversation history with ${profileName}?\n\nThis action cannot be undone.`,
+        'de': `Gesamte Gesprächsverlauf mit ${profileName} löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.`,
+        'fr': `Supprimer tout l'historique de conversation avec ${profileName} ?\n\nCette action est irréversible.`,
+        'it': `Eliminare tutta la cronologia delle conversazioni con ${profileName}?\n\nQuesta azione non può essere annullata.`,
+        'pt': `Excluir todo o histórico de conversa com ${profileName}?\n\nEsta ação não pode ser desfeita.`,
+        'zh': `删除与 ${profileName} 的所有对话历史记录？\n\n此操作无法撤消。`
+      };
+      
+      const confirmMsg = confirmMessages[appLang] || confirmMessages['en'];
+      
+      if (confirm(confirmMsg)) {
+        this.clearHistory();
+      }
+    }
+
+    clearHistory() {
+      const storageKey = this.getChatStorageKey();
+      this.chatHistory = [];
+      localStorage.removeItem(storageKey);
+      this.clearChatUI();
+      
+      // Enviar mensaje de bienvenida automáticamente
+      this.sendWelcomeMessage();
+      
+      console.log(`🗑️ Historial borrado para perfil ${this.currentProfileId}`);
+      
+      // Mensaje de confirmación visual
+      const appLang = this.getAppLanguage();
+      const successMessages = {
+        'es': '✅ Historial borrado correctamente',
+        'en': '✅ History cleared successfully',
+        'de': '✅ Verlauf erfolgreich gelöscht',
+        'fr': '✅ Historique effacé avec succès',
+        'it': '✅ Cronologia cancellata con successo',
+        'pt': '✅ Histórico excluído com sucesso',
+        'zh': '✅ 历史记录已成功清除'
+      };
+      
+      // Mostrar mensaje temporal (opcional)
+      console.log(successMessages[appLang] || successMessages['en']);
+    }
+
+    // ------------------------------------------------------------------------
     // GESTIÓN DE CHAT
     // ------------------------------------------------------------------------
     
@@ -243,15 +296,12 @@
         modal.classList.add('active');
         this.isOpen = true;
         
-        // Actualizar subtítulo con nombre del perfil
         this.updateChatSubtitle();
         
-        // Si es la primera vez para este perfil, enviar mensaje de bienvenida
         if (this.chatHistory.length === 0) {
           this.sendWelcomeMessage();
         }
         
-        // Focus en input
         const input = document.getElementById('aiChatInput');
         if (input) {
           setTimeout(() => input.focus(), 100);
@@ -329,13 +379,13 @@
         this.addMessage(response, 'assistant');
         this.saveChatHistory();
       } catch (error) {
-        console.error('❌ Error al enviar mensaje:', error);
+        console.error('❌ Error:', error);
         this.hideTypingIndicator();
         
         const appLang = this.getAppLanguage();
         const errorMessages = {
-          'es': '❌ Error al conectar. Verifica tu API key y conexión.',
-          'en': '❌ Connection error. Check your API key and connection.',
+          'es': '❌ Error al conectar. Verifica tu API key.',
+          'en': '❌ Connection error. Check your API key.',
           'de': '❌ Verbindungsfehler. API-Schlüssel prüfen.',
           'fr': '❌ Erreur de connexion. Vérifiez votre clé API.',
           'it': '❌ Errore di connessione. Verifica la chiave API.',
@@ -409,7 +459,7 @@
       const apiKey = CONFIG.GEMINI_API_KEY;
       
       if (!apiKey || apiKey.includes('AIzaSy...') || apiKey.length < 30) {
-        throw new Error('API Key no configurada correctamente');
+        throw new Error('API Key no configurada');
       }
 
       const conversationHistory = this.chatHistory
@@ -423,10 +473,7 @@
       const requestBody = {
         contents: [
           ...conversationHistory,
-          {
-            role: 'user',
-            parts: [{ text: userMessage }]
-          }
+          { role: 'user', parts: [{ text: userMessage }] }
         ],
         systemInstruction: {
           parts: [{ text: systemPrompt }]
@@ -509,7 +556,6 @@ Eres "Coach Timer Pro", un entrenador personal experto en CrossFit y fitness fun
 IDIOMA:
 - Idioma de la app: ${langName}
 - Responde SIEMPRE en el idioma que te escriban
-- Si detectas cambio de idioma vs app, pregunta preferencia UNA VEZ
 
 CONTEXTO:
 ${profileInfo}
@@ -517,13 +563,12 @@ ${workoutsInfo}
 
 REGLAS:
 1. Máximo ${CONFIG.RESPONSE_MAX_WORDS} palabras
-2. 2-3 consejos específicos y accionables
-3. Menciona entrenamientos recientes si es relevante
+2. 2-3 consejos específicos
+3. Menciona entrenamientos si es relevante
 4. Máximo 2 emojis por mensaje
-5. No inventes datos
-6. Termina con motivación cuando sea apropiado
+5. Termina con motivación
 
-RECUERDA: Eres un coach real, usa el contexto para personalizar.
+RECUERDA: Personaliza con el contexto del usuario.
 `.trim();
     }
 
@@ -565,7 +610,7 @@ RECUERDA: Eres un coach real, usa el contexto para personalizar.
     }
 
     // ------------------------------------------------------------------------
-    // PERSISTENCIA (MODIFICADO: Por perfil)
+    // PERSISTENCIA
     // ------------------------------------------------------------------------
     
     loadChatHistory() {
@@ -577,12 +622,11 @@ RECUERDA: Eres un coach real, usa el contexto para personalizar.
           const parsed = JSON.parse(saved);
           this.chatHistory = Array.isArray(parsed) ? parsed : [];
           
-          // Renderizar mensajes guardados
           this.chatHistory.forEach(msg => {
             this.addMessageToDOM(msg.text, msg.role);
           });
           
-          console.log(`📂 Historial cargado para perfil ${this.currentProfileId}: ${this.chatHistory.length} mensajes`);
+          console.log(`📂 Historial cargado: ${this.chatHistory.length} mensajes`);
         } else {
           this.chatHistory = [];
         }
@@ -596,7 +640,6 @@ RECUERDA: Eres un coach real, usa el contexto para personalizar.
       try {
         const storageKey = this.getChatStorageKey();
         localStorage.setItem(storageKey, JSON.stringify(this.chatHistory));
-        console.log(`💾 Historial guardado para perfil ${this.currentProfileId}`);
       } catch (error) {
         console.warn('⚠️ Error guardando historial:', error);
       }
@@ -616,21 +659,10 @@ RECUERDA: Eres un coach real, usa el contexto para personalizar.
       messageDiv.appendChild(bubble);
       messagesContainer.appendChild(messageDiv);
     }
-
-    clearHistory() {
-      const storageKey = this.getChatStorageKey();
-      this.chatHistory = [];
-      localStorage.removeItem(storageKey);
-      this.clearChatUI();
-      if (this.isOpen) {
-        this.sendWelcomeMessage();
-      }
-      console.log(`🗑️ Historial borrado para perfil ${this.currentProfileId}`);
-    }
   }
 
   // ============================================================================
-  // INICIALIZACIÓN AUTOMÁTICA
+  // INICIALIZACIÓN
   // ============================================================================
   
   function initAIChat() {

@@ -1,5 +1,5 @@
 /**
- * AI Trainer Chat - Entrenador personal con IA usando Gemini
+ * AI Trainer Chat - Entrenador personal con IA usando Perplexity Sonar
  * Versión: 2.4 - Chat por perfil + Limpiar + Lectura completa + Fecha/Hora
  */
 
@@ -11,9 +11,9 @@
   // ============================================================================
   
   const CONFIG = {
-    GEMINI_API_KEY: 'AIzaSyAL1-DSDrQ50FpyY2TSr6acTkRPgAPC3uc', // TU API KEY AQUÍ
-    GEMINI_API_URL: 'https://generativelanguage.googleapis.com/v1beta/models',
-    GEMINI_MODEL_ID: 'gemini-2.0-flash',
+    PERPLEXITY_API_KEY: '', // TU API KEY DE PERPLEXITY AQUÍ (formato: pplx-...)
+    PERPLEXITY_API_URL: 'https://api.perplexity.ai/chat/completions',
+    PERPLEXITY_MODEL_ID: 'sonar',
     
     MAX_HISTORY: 10,
     MAX_WORKOUTS: 5,
@@ -356,7 +356,7 @@
       this.isLoading = true;
 
       try {
-        const response = await this.callGemini(userMessage);
+        const response = await this.callSonar(userMessage);
         this.hideTypingIndicator();
         this.addMessage(response, 'assistant');
         this.saveChatHistory();
@@ -429,18 +429,26 @@
     }
 
     // ------------------------------------------------------------------------
-    // LLAMADA A GEMINI
+    // LLAMADA A PERPLEXITY SONAR
     // ------------------------------------------------------------------------
     
-    async callGemini(userMessage) {
+    getApiKey() {
+      const storedKey = localStorage.getItem('perplexity_api_key');
+      if (storedKey && typeof storedKey === 'string' && storedKey.startsWith('pplx-')) {
+        return storedKey.trim();
+      }
+      return CONFIG.PERPLEXITY_API_KEY;
+    }
+
+    async callSonar(userMessage) {
       const appLang = this.getAppLanguage();
       const profile = this.getUserProfile();
       const recentWorkouts = this.getRecentWorkouts();
       const systemPrompt = this.buildSystemPrompt(appLang, profile, recentWorkouts);
       
-      const apiKey = CONFIG.GEMINI_API_KEY;
+      const apiKey = this.getApiKey();
       
-      if (!apiKey || apiKey.includes('AIzaSy...') || apiKey.length < 30) {
+      if (!apiKey || apiKey.length < 20 || !apiKey.startsWith('pplx-')) {
         throw new Error('API Key no configurada');
       }
 
@@ -448,31 +456,30 @@
         .filter(msg => msg.role !== 'system')
         .slice(-CONFIG.MAX_HISTORY * 2)
         .map(msg => ({
-          role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.text }]
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.text
         }));
 
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        ...conversationHistory,
+        { role: 'user', content: userMessage }
+      ];
+
       const requestBody = {
-        contents: [
-          ...conversationHistory,
-          { role: 'user', parts: [{ text: userMessage }] }
-        ],
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 500,
-          topP: 0.9,
-          topK: 40
-        }
+        model: CONFIG.PERPLEXITY_MODEL_ID,
+        messages,
+        temperature: 0.7,
+        max_tokens: 500,
+        top_p: 0.9
       };
 
-      const apiUrl = `${CONFIG.GEMINI_API_URL}/${CONFIG.GEMINI_MODEL_ID}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      
-      const response = await fetch(apiUrl, {
+      const response = await fetch(CONFIG.PERPLEXITY_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
         body: JSON.stringify(requestBody)
       });
 
@@ -490,10 +497,10 @@
         throw new Error(apiError);
       }
 
-      const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const aiResponse = data?.choices?.[0]?.message?.content;
       
       if (!aiResponse) {
-        throw new Error('Gemini no devolvió texto');
+        throw new Error('Perplexity no devolvió texto');
       }
 
       return aiResponse.trim();

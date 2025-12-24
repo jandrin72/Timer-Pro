@@ -1,6 +1,6 @@
 /**
  * AI Trainer Chat - Entrenador personal con IA usando Perplexity Sonar
- * Versión: 2.5 - Integración Perplexity Sonar + Detección de idioma + Historial de entrenamientos
+ * Versión: 2.4 - Chat por perfil + Limpiar + Lectura completa + Fecha/Hora
  */
 
 (function() {
@@ -11,13 +11,13 @@
   // ============================================================================
 
   const CONFIG = {
-    // PERPLEXITY SONAR - API Key configurada
     PERPLEXITY_API_KEY: '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',
     PERPLEXITY_API_URL: 'https://api.perplexity.ai/chat/completions',
+    PERPLEXITY_PROXY_URL: '', // Opcional: proxy con CORS habilitado (por ejemplo, tu propio backend)
     PERPLEXITY_MODEL_ID: 'sonar',
-
-    MAX_HISTORY: 10, // Últimas 10 interacciones
-    MAX_WORKOUTS: 5, // Últimos 5 entrenamientos
+    
+    MAX_HISTORY: 10,
+    MAX_WORKOUTS: 5,
     RESPONSE_MAX_WORDS: 150,
 
     // Mapeo de códigos de idioma a nombres completos
@@ -228,18 +228,19 @@
         this.hideTypingIndicator();
 
         const appLang = this.getAppLanguage();
+        const friendlyDetail = this.buildFriendlyError(error);
         const errorMessages = {
-          es: '❌ Error al conectar. Verifica tu API key.',
-          en: '❌ Connection error. Check your API key.',
-          de: '❌ Verbindungsfehler. API-Schlüssel prüfen.',
-          fr: '❌ Erreur de connexion. Vérifiez votre clé API.',
-          it: '❌ Errore di connessione. Verifica la chiave API.',
-          pt: '❌ Erro de conexão. Verifique sua chave API.',
-          zh: '❌ 连接错误。检查您的 API 密钥。'
+          'es': '❌ Error al conectar. Verifica tu API key y CORS.',
+          'en': '❌ Connection error. Check your API key and CORS.',
+          'de': '❌ Verbindungsfehler. API-Schlüssel und CORS prüfen.',
+          'fr': '❌ Erreur de connexion. Vérifiez votre clé API et CORS.',
+          'it': '❌ Errore di connessione. Verifica la chiave API e il CORS.',
+          'pt': '❌ Erro de conexão. Verifique sua chave API e CORS.',
+          'zh': '❌ 连接错误。检查您的 API 密钥和 CORS。'
         };
 
         const errorMsg = errorMessages[appLang] || errorMessages['en'];
-        this.addMessage(`${errorMsg}\n\n${error.message}`, 'assistant');
+        this.addMessage(`${errorMsg}\n\n${friendlyDetail}`, 'assistant');
       } finally {
         this.isLoading = false;
       }
@@ -306,36 +307,37 @@
     // ------------------------------------------------------------------------
     // LLAMADA A PERPLEXITY SONAR
     // ------------------------------------------------------------------------
-
+    
     getApiKey() {
-      if (this.cachedPerplexityKey) {
-        return this.cachedPerplexityKey;
-      }
-
       const storedKey = localStorage.getItem('perplexity_api_key');
       if (storedKey && typeof storedKey === 'string' && storedKey.startsWith('pplx-')) {
-        this.cachedPerplexityKey = storedKey.trim();
         return storedKey.trim();
       }
+      return CONFIG.PERPLEXITY_API_KEY;
+    }
 
-      const directKey = (CONFIG.PERPLEXITY_API_KEY || '').trim();
-      if (directKey && directKey.startsWith('pplx-')) {
-        this.cachedPerplexityKey = directKey;
-        return directKey;
+    getApiEndpoint() {
+      const storedUrl = localStorage.getItem('perplexity_api_url');
+      if (storedUrl && typeof storedUrl === 'string' && storedUrl.startsWith('http')) {
+        return storedUrl.trim();
       }
-
-      return null;
+      if (CONFIG.PERPLEXITY_PROXY_URL && CONFIG.PERPLEXITY_PROXY_URL.startsWith('http')) {
+        return CONFIG.PERPLEXITY_PROXY_URL;
+      }
+      return CONFIG.PERPLEXITY_API_URL;
     }
 
     async callSonar(userMessage) {
-      const appLang = this.detectUserLanguage(userMessage);
+      const appLang = this.getAppLanguage();
       const profile = this.getUserProfile();
       const recentWorkouts = this.getRecentWorkouts();
       const systemPrompt = this.buildSystemPrompt(appLang, profile, recentWorkouts);
-
+      
       const apiKey = this.getApiKey();
+      const endpoint = this.getApiEndpoint();
+      
       if (!apiKey || apiKey.length < 20 || !apiKey.startsWith('pplx-')) {
-        throw new Error('API Key no configurada o inválida');
+        throw new Error('API Key no configurada');
       }
 
       const conversationHistory = this.chatHistory
@@ -360,13 +362,17 @@
         top_p: 0.9
       };
 
-      const response = await fetch(CONFIG.PERPLEXITY_API_URL, {
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        mode: 'cors',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer'
       });
 
       const responseText = await response.text();
@@ -384,11 +390,30 @@
       }
 
       const aiResponse = data?.choices?.[0]?.message?.content;
+      
       if (!aiResponse) {
         throw new Error('Perplexity no devolvió texto');
       }
 
       return aiResponse.trim();
+    }
+
+    buildFriendlyError(error) {
+      const isNetworkError = error instanceof TypeError && /fetch|NetworkError|Failed to fetch/i.test(error.message);
+      const isFileProtocol = window.location.protocol === 'file:';
+
+      if (isNetworkError) {
+        let hint = 'Error de red o CORS. ';
+        if (isFileProtocol) {
+          hint += 'Abre la app con un servidor local (ej. "python -m http.server 8080") en vez de doble click.';
+        } else {
+          hint += 'Asegúrate de usar un dominio/origen con HTTPS y que el endpoint permita CORS. ';
+          hint += 'Puedes configurar un proxy con CORS en localStorage: localStorage.setItem("perplexity_api_url", "https://tu-proxy/")';
+        }
+        return `${hint}\nDetalle: ${error.message}`;
+      }
+
+      return error.message || 'Error desconocido';
     }
 
     // ------------------------------------------------------------------------

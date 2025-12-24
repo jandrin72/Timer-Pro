@@ -80,7 +80,12 @@ open index.html
    localStorage.setItem('perplexity_api_key', 'pplx-XXXXX');
    ```
    (También puedes editar `src/utils/aiTrainerChat.js` y asignarla en `PERPLEXITY_API_KEY`).
-3. Abre el chat (botón 💬) y conversa con el coach.
+3. Evita abrir `index.html` con doble clic (origen `file://`). Levanta un servidor local simple (por ejemplo, `python -m http.server 8080` o `npx serve`) para que las llamadas a la API no sean bloqueadas por CORS.
+4. Si tu endpoint requiere proxy con CORS, guarda la URL en `localStorage`:
+   ```js
+   localStorage.setItem('perplexity_api_url', 'https://tu-proxy-con-cors/chat/completions');
+   ```
+5. Abre el chat (botón 💬) y conversa con el coach.
 
 ### Uso Básico
 

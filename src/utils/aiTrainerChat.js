@@ -1,6 +1,6 @@
 /**
  * AI Trainer Chat - Entrenador personal con IA usando Perplexity Sonar
- * Versión: 2.5 - Integración Perplexity Sonar + Fix CORS + Fix alternancia mensajes
+ * Versión: 2.5 - Con proxy CORS corsproxy.io
  */
 
 (function() {
@@ -14,9 +14,6 @@
     PERPLEXITY_API_KEY: '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',
     PERPLEXITY_API_URL: 'https://api.perplexity.ai/chat/completions',
     PERPLEXITY_MODEL_ID: 'sonar',
-    
-    // Proxy CORS para navegadores
-    CORS_PROXY: 'https://api.allorigins.win/raw?url=',
     
     MAX_HISTORY: 10,
     MAX_WORKOUTS: 5,
@@ -230,13 +227,13 @@
 
         const appLang = this.getAppLanguage();
         const errorMessages = {
-          'es': '❌ Error al conectar. Verifica tu API key y CORS.',
-          'en': '❌ Connection error. Check your API key and CORS.',
-          'de': '❌ Verbindungsfehler. API-Schlüssel und CORS prüfen.',
-          'fr': '❌ Erreur de connexion. Vérifiez votre clé API et CORS.',
-          'it': '❌ Errore di connessione. Verifica la chiave API e il CORS.',
-          'pt': '❌ Erro de conexão. Verifique sua chave API e CORS.',
-          'zh': '❌ 连接错误。检查您的 API 密钥和 CORS。'
+          'es': '❌ Error al conectar con la IA.',
+          'en': '❌ Connection error with AI.',
+          'de': '❌ Verbindungsfehler mit KI.',
+          'fr': '❌ Erreur de connexion avec IA.',
+          'it': '❌ Errore di connessione con IA.',
+          'pt': '❌ Erro de conexão com IA.',
+          'zh': '❌ AI 连接错误。'
         };
 
         const errorMsg = errorMessages[appLang] || errorMessages['en'];
@@ -305,7 +302,7 @@
     }
 
     // ------------------------------------------------------------------------
-    // LLAMADA A PERPLEXITY SONAR (CORREGIDA)
+    // LLAMADA A PERPLEXITY SONAR CON CORSPROXY.IO
     // ------------------------------------------------------------------------
     
     getApiKey() {
@@ -328,12 +325,11 @@
         throw new Error('API Key no configurada');
       }
 
-      // ✅ CORRECCIÓN: Filtrar y alternar correctamente los mensajes user/assistant
+      // Filtrar y alternar correctamente los mensajes user/assistant
       const recentMessages = this.chatHistory
         .slice(-CONFIG.MAX_HISTORY * 2)
         .filter(msg => msg.role === 'user' || msg.role === 'assistant');
 
-      // Construir historial alternado (eliminar duplicados consecutivos del mismo rol)
       const conversationHistory = [];
       let lastRole = null;
       
@@ -347,7 +343,6 @@
         }
       }
 
-      // Construir array de mensajes: system + historial + mensaje actual
       const messages = [
         { role: 'system', content: systemPrompt },
         ...conversationHistory,
@@ -362,9 +357,8 @@
         top_p: 0.9
       };
 
-      // ✅ Usar proxy CORS
-      const targetUrl = CONFIG.PERPLEXITY_API_URL;
-      const proxiedUrl = CONFIG.CORS_PROXY + encodeURIComponent(targetUrl);
+      // ✅ Usar corsproxy.io para evitar CORS
+      const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(CONFIG.PERPLEXITY_API_URL)}`;
 
       const response = await fetch(proxiedUrl, {
         method: 'POST',
@@ -375,6 +369,11 @@
         body: JSON.stringify(requestBody)
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+      }
+
       const responseText = await response.text();
       let data = null;
 
@@ -382,11 +381,6 @@
         data = responseText ? JSON.parse(responseText) : null;
       } catch (parseError) {
         throw new Error(`Respuesta inválida: ${responseText.substring(0, 100)}`);
-      }
-
-      if (!response.ok) {
-        const apiError = data?.error?.message || `HTTP ${response.status}`;
-        throw new Error(apiError);
       }
 
       const aiResponse = data?.choices?.[0]?.message?.content;

@@ -1,6 +1,6 @@
 /**
  * AI Trainer Chat - Entrenador personal con IA usando Perplexity Sonar
- * Versión: 2.5 - Integración Perplexity Sonar + Solución CORS Proxy
+ * Versión: 2.5 - Integración Perplexity Sonar + Fix CORS + Fix alternancia mensajes
  */
 
 (function() {
@@ -11,14 +11,13 @@
   // ============================================================================
 
   const CONFIG = {
-    // API KEY integrada directamente
     PERPLEXITY_API_KEY: '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',
     PERPLEXITY_API_URL: 'https://api.perplexity.ai/chat/completions',
     PERPLEXITY_MODEL_ID: 'sonar',
     
-    // Proxy para evitar el error de CORS en el navegador
+    // Proxy CORS para navegadores
     CORS_PROXY: 'https://api.allorigins.win/raw?url=',
-
+    
     MAX_HISTORY: 10,
     MAX_WORKOUTS: 5,
     RESPONSE_MAX_WORDS: 150,
@@ -49,20 +48,31 @@
       this.init();
     }
 
+    // ------------------------------------------------------------------------
+    // INICIALIZACIÓN
+    // ------------------------------------------------------------------------
+
     init() {
       this.createUI();
       this.bindEvents();
       this.loadChatHistory();
-      console.log('✅ AI Trainer Chat inicializado con Perplexity Sonar (CORS Fix)');
+      console.log('✅ AI Trainer Chat inicializado con Perplexity Sonar');
     }
 
+    // ------------------------------------------------------------------------
+    // CREACIÓN DE UI
+    // ------------------------------------------------------------------------
+
     createUI() {
-      if (document.getElementById('aiChatFloatingBtn')) return;
+      if (document.getElementById('aiChatFloatingBtn')) {
+        return;
+      }
 
       const floatingBtn = document.createElement('button');
       floatingBtn.id = 'aiChatFloatingBtn';
       floatingBtn.className = 'ai-chat-floating-btn';
       floatingBtn.innerHTML = '💬';
+      floatingBtn.setAttribute('aria-label', 'Abrir chat con entrenador IA');
       document.body.appendChild(floatingBtn);
 
       const modalHTML = `
@@ -78,62 +88,131 @@
               </div>
               <button id="aiChatCloseBtn" class="ai-chat-close-btn">✕</button>
             </div>
+
             <div id="aiChatMessages" class="ai-chat-messages"></div>
+
             <div class="ai-chat-input-container">
-              <input type="text" id="aiChatInput" class="ai-chat-input" placeholder="Escribe tu pregunta..." autocomplete="off" />
-              <button id="aiChatSendBtn" class="ai-chat-send-btn"><span>📤</span></button>
+              <input
+                type="text"
+                id="aiChatInput"
+                class="ai-chat-input"
+                placeholder="Escribe tu pregunta..."
+                autocomplete="off"
+              />
+              <button id="aiChatSendBtn" class="ai-chat-send-btn">
+                <span>📤</span>
+              </button>
             </div>
           </div>
         </div>
       `;
+
       document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
 
+    // ------------------------------------------------------------------------
+    // EVENT LISTENERS
+    // ------------------------------------------------------------------------
+
     bindEvents() {
-      document.getElementById('aiChatFloatingBtn')?.addEventListener('click', () => this.openChat());
-      document.getElementById('aiChatCloseBtn')?.addEventListener('click', () => this.closeChat());
-      document.getElementById('aiChatSendBtn')?.addEventListener('click', () => this.sendMessage());
-      document.getElementById('aiChatInput')?.addEventListener('keypress', e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          this.sendMessage();
-        }
-      });
+      const floatingBtn = document.getElementById('aiChatFloatingBtn');
+      const closeBtn = document.getElementById('aiChatCloseBtn');
+      const sendBtn = document.getElementById('aiChatSendBtn');
+      const input = document.getElementById('aiChatInput');
+      const modal = document.getElementById('aiChatModal');
+
+      if (floatingBtn) {
+        floatingBtn.addEventListener('click', () => this.openChat());
+      }
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => this.closeChat());
+      }
+
+      if (sendBtn) {
+        sendBtn.addEventListener('click', () => this.sendMessage());
+      }
+
+      if (input) {
+        input.addEventListener('keypress', event => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.sendMessage();
+          }
+        });
+      }
+
+      if (modal) {
+        modal.addEventListener('click', event => {
+          if (event.target === modal) {
+            this.closeChat();
+          }
+        });
+      }
     }
+
+    // ------------------------------------------------------------------------
+    // GESTIÓN DE CHAT
+    // ------------------------------------------------------------------------
 
     openChat() {
       const modal = document.getElementById('aiChatModal');
       if (modal) {
         modal.classList.add('active');
         this.isOpen = true;
-        if (this.chatHistory.length === 0) this.sendWelcomeMessage();
-        setTimeout(() => document.getElementById('aiChatInput')?.focus(), 100);
+
+        if (this.chatHistory.length === 0) {
+          this.sendWelcomeMessage();
+        }
+
+        const input = document.getElementById('aiChatInput');
+        if (input) {
+          setTimeout(() => input.focus(), 100);
+        }
       }
     }
 
     closeChat() {
-      document.getElementById('aiChatModal')?.classList.remove('active');
-      this.isOpen = false;
+      const modal = document.getElementById('aiChatModal');
+      if (modal) {
+        modal.classList.remove('active');
+        this.isOpen = false;
+      }
     }
 
+    // ------------------------------------------------------------------------
+    // MENSAJES
+    // ------------------------------------------------------------------------
+
     async sendWelcomeMessage() {
+      const appLang = this.getAppLanguage();
       const profile = this.getUserProfile();
       const userName = profile.name || 'atleta';
-      const lang = this.getAppLanguage();
-      
-      const msgs = {
-        es: `¡Hola ${userName}! 👋 Soy tu Coach Timer Pro. ¿En qué puedo ayudarte?`,
-        en: `Hello ${userName}! 👋 I'm your Coach Timer Pro. How can I help?`
+
+      const welcomeMessages = {
+        es: `¡Hola ${userName}! 👋 Soy tu Coach Timer Pro. ¿En qué puedo ayudarte hoy?`,
+        en: `Hello ${userName}! 👋 I'm your Coach Timer Pro. How can I help you today?`,
+        de: `Hallo ${userName}! 👋 Ich bin dein Coach Timer Pro. Wie kann ich dir helfen?`,
+        fr: `Bonjour ${userName}! 👋 Je suis votre Coach Timer Pro. Comment puis-je vous aider?`,
+        it: `Ciao ${userName}! 👋 Sono il tuo Coach Timer Pro. Come posso aiutarti?`,
+        pt: `Olá ${userName}! 👋 Sou seu Coach Timer Pro. Como posso ajudar?`,
+        zh: `你好 ${userName}! 👋 我是你的 Coach Timer Pro。我能帮你什么?`
       };
-      this.addMessage(msgs[lang] || msgs.en, 'assistant');
+
+      const welcomeMsg = welcomeMessages[appLang] || welcomeMessages.en;
+      this.addMessage(welcomeMsg, 'assistant');
     }
 
     async sendMessage() {
       const input = document.getElementById('aiChatInput');
-      if (!input || this.isLoading) return;
+      if (!input || this.isLoading) {
+        return;
+      }
 
       const userMessage = input.value.trim();
-      if (!userMessage) return;
+      if (!userMessage) {
+        return;
+      }
 
       input.value = '';
       this.addMessage(userMessage, 'user');
@@ -148,21 +227,32 @@
       } catch (error) {
         console.error('❌ Error:', error);
         this.hideTypingIndicator();
-        this.addMessage(`❌ Error: ${error.message}. Intenta de nuevo.`, 'assistant');
+
+        const appLang = this.getAppLanguage();
+        const errorMessages = {
+          'es': '❌ Error al conectar. Verifica tu API key y CORS.',
+          'en': '❌ Connection error. Check your API key and CORS.',
+          'de': '❌ Verbindungsfehler. API-Schlüssel und CORS prüfen.',
+          'fr': '❌ Erreur de connexion. Vérifiez votre clé API et CORS.',
+          'it': '❌ Errore di connessione. Verifica la chiave API e il CORS.',
+          'pt': '❌ Erro de conexão. Verifique sua chave API e CORS.',
+          'zh': '❌ 连接错误。检查您的 API 密钥和 CORS。'
+        };
+
+        const errorMsg = errorMessages[appLang] || errorMessages['en'];
+        this.addMessage(`${errorMsg}\n\n${error.message}`, 'assistant');
       } finally {
         this.isLoading = false;
       }
     }
 
     addMessage(text, role) {
-      const container = document.getElementById('aiChatMessages');
-      if (!container) return;
+      const messagesContainer = document.getElementById('aiChatMessages');
+      if (!messagesContainer) {
+        return;
+      }
 
-      const div = document.createElement('div');
-      div.className = `ai-chat-message ai-chat-message-${role}`;
-      div.innerHTML = `<div class="ai-chat-bubble">${text}</div>`;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
+      this.addMessageToDOM(text, role);
 
       this.chatHistory.push({ role, text, timestamp: Date.now() });
       if (this.chatHistory.length > CONFIG.MAX_HISTORY * 2) {
@@ -170,134 +260,383 @@
       }
     }
 
+    addMessageToDOM(text, role) {
+      const messagesContainer = document.getElementById('aiChatMessages');
+      if (!messagesContainer) {
+        return;
+      }
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `ai-chat-message ai-chat-message-${role}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'ai-chat-bubble';
+      bubble.textContent = text;
+
+      messageDiv.appendChild(bubble);
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
     showTypingIndicator() {
-      const container = document.getElementById('aiChatMessages');
-      const typing = document.createElement('div');
-      typing.id = 'aiTypingIndicator';
-      typing.className = 'ai-chat-message ai-chat-message-assistant';
-      typing.innerHTML = `<div class="ai-chat-bubble ai-chat-typing"><span></span><span></span><span></span></div>`;
-      container.appendChild(typing);
-      container.scrollTop = container.scrollHeight;
+      const messagesContainer = document.getElementById('aiChatMessages');
+      if (!messagesContainer || document.getElementById('aiTypingIndicator')) {
+        return;
+      }
+
+      const typingDiv = document.createElement('div');
+      typingDiv.id = 'aiTypingIndicator';
+      typingDiv.className = 'ai-chat-message ai-chat-message-assistant';
+      typingDiv.innerHTML = `
+        <div class="ai-chat-bubble ai-chat-typing">
+          <span></span><span></span><span></span>
+        </div>
+      `;
+
+      messagesContainer.appendChild(typingDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
     hideTypingIndicator() {
-      document.getElementById('aiTypingIndicator')?.remove();
+      const typingDiv = document.getElementById('aiTypingIndicator');
+      if (typingDiv) {
+        typingDiv.remove();
+      }
     }
 
     // ------------------------------------------------------------------------
-    // LLAMADA A PERPLEXITY CON FIX DE CORS
+    // LLAMADA A PERPLEXITY SONAR (CORREGIDA)
     // ------------------------------------------------------------------------
-
+    
     getApiKey() {
-      const stored = localStorage.getItem('perplexity_api_key');
-      return (stored && stored.startsWith('pplx-')) ? stored.trim() : CONFIG.PERPLEXITY_API_KEY;
+      const storedKey = localStorage.getItem('perplexity_api_key');
+      if (storedKey && typeof storedKey === 'string' && storedKey.startsWith('pplx-')) {
+        return storedKey.trim();
+      }
+      return CONFIG.PERPLEXITY_API_KEY;
     }
 
     async callSonar(userMessage) {
-      const apiKey = this.getApiKey();
       const appLang = this.getAppLanguage();
       const profile = this.getUserProfile();
-      const workouts = this.getRecentWorkouts();
-      const systemPrompt = this.buildSystemPrompt(appLang, profile, workouts);
+      const recentWorkouts = this.getRecentWorkouts();
+      const systemPrompt = this.buildSystemPrompt(appLang, profile, recentWorkouts);
+      
+      const apiKey = this.getApiKey();
+      
+      if (!apiKey || apiKey.length < 20 || !apiKey.startsWith('pplx-')) {
+        throw new Error('API Key no configurada');
+      }
 
-      // Configuración de mensajes para la API
+      // ✅ CORRECCIÓN: Filtrar y alternar correctamente los mensajes user/assistant
+      const recentMessages = this.chatHistory
+        .slice(-CONFIG.MAX_HISTORY * 2)
+        .filter(msg => msg.role === 'user' || msg.role === 'assistant');
+
+      // Construir historial alternado (eliminar duplicados consecutivos del mismo rol)
+      const conversationHistory = [];
+      let lastRole = null;
+      
+      for (const msg of recentMessages) {
+        if (msg.role !== lastRole) {
+          conversationHistory.push({
+            role: msg.role,
+            content: msg.text
+          });
+          lastRole = msg.role;
+        }
+      }
+
+      // Construir array de mensajes: system + historial + mensaje actual
       const messages = [
         { role: 'system', content: systemPrompt },
-        ...this.chatHistory.map(m => ({ 
-          role: m.role === 'assistant' ? 'assistant' : 'user', 
-          content: m.text 
-        })),
+        ...conversationHistory,
         { role: 'user', content: userMessage }
       ];
 
-      const body = {
+      const requestBody = {
         model: CONFIG.PERPLEXITY_MODEL_ID,
         messages: messages,
         temperature: 0.7,
-        max_tokens: 500
+        max_tokens: 500,
+        top_p: 0.9
       };
 
-      // ✅ USANDO PROXY ALLORIGINS PARA EVITAR CORS
-      const fullUrl = CONFIG.CORS_PROXY + encodeURIComponent(CONFIG.PERPLEXITY_API_URL);
+      // ✅ Usar proxy CORS
+      const targetUrl = CONFIG.PERPLEXITY_API_URL;
+      const proxiedUrl = CONFIG.CORS_PROXY + encodeURIComponent(targetUrl);
 
-      const response = await fetch(fullUrl, {
+      const response = await fetch(proxiedUrl, {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(requestBody)
       });
 
-      if (!response.ok) {
-        throw new Error(`Error API Perplexity: ${response.status}`);
+      const responseText = await response.text();
+      let data = null;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        throw new Error(`Respuesta inválida: ${responseText.substring(0, 100)}`);
       }
 
-      const data = await response.json();
-      const content = data?.choices?.[0]?.message?.content;
+      if (!response.ok) {
+        const apiError = data?.error?.message || `HTTP ${response.status}`;
+        throw new Error(apiError);
+      }
 
-      if (!content) throw new Error('No se recibió respuesta de la IA');
-      return content.trim();
+      const aiResponse = data?.choices?.[0]?.message?.content;
+      
+      if (!aiResponse) {
+        throw new Error('Perplexity no devolvió texto');
+      }
+
+      return aiResponse.trim();
     }
 
     // ------------------------------------------------------------------------
-    // MÉTODOS DE APOYO (PERFIL, ENTRENAMIENTOS, ETC)
+    // CONSTRUCCIÓN DEL PROMPT
     // ------------------------------------------------------------------------
 
     buildSystemPrompt(appLang, profile, workouts) {
-      const langName = CONFIG.LANGUAGE_NAMES[appLang] || 'español';
-      let info = `Eres Coach Timer Pro, experto en CrossFit. Responde en ${langName}.\n`;
-      info += `Usuario: ${profile.name || 'Atleta'}, Objetivo: ${profile.goal || 'Fitness'}.\n`;
-      if (workouts.length > 0) info += `Últimos entrenos: ${workouts.map(w => w.type).join(', ')}.`;
-      return info;
+      const langName = CONFIG.LANGUAGE_NAMES[appLang] || 'English';
+
+      let profileInfo = 'PERFIL DEL USUARIO:\n';
+      if (profile.name) profileInfo += `- Nombre: ${profile.name}\n`;
+      if (profile.age) profileInfo += `- Edad: ${profile.age} años\n`;
+      if (profile.biologicalSex) profileInfo += `- Sexo: ${profile.biologicalSex}\n`;
+      if (profile.fitnessLevel) profileInfo += `- Nivel fitness: ${profile.fitnessLevel}\n`;
+      if (profile.goal) profileInfo += `- Objetivo: ${profile.goal}\n`;
+      if (profile.trainingDays) profileInfo += `- Días entrenamiento/semana: ${profile.trainingDays}\n`;
+      if (profile.experience) profileInfo += `- Experiencia: ${profile.experience}\n`;
+      if (profile.limitations) profileInfo += `- Limitaciones: ${profile.limitations}\n`;
+
+      let workoutsInfo = '\nÚLTIMOS ENTRENAMIENTOS:\n';
+      if (!workouts.length) {
+        workoutsInfo += '- Aún no hay entrenamientos registrados\n';
+      } else {
+        workouts.forEach((workout, index) => {
+          const date = workout.timestamp ? new Date(workout.timestamp).toLocaleDateString() : 'N/A';
+          workoutsInfo += `${index + 1}. ${date}: ${workout.type.toUpperCase()} | `;
+          workoutsInfo += `${workout.config || 'N/A'} | `;
+          workoutsInfo += `${workout.completed ? 'Completado' : 'No completado'} | `;
+          if (workout.rpe) workoutsInfo += `RPE ${workout.rpe}/10 | `;
+          if (workout.notes) workoutsInfo += `"${workout.notes}"`;
+          workoutsInfo += '\n';
+        });
+      }
+
+      return `
+IDENTIDAD:
+Eres "Coach Timer Pro", un entrenador personal experto en CrossFit, fitness funcional y HIIT.
+Tu personalidad es motivadora, profesional, empática y específica.
+Conoces el contexto completo del usuario (perfil, objetivos, limitaciones, historial de entrenamientos).
+
+IDIOMA:
+- Idioma de la interfaz de la app: ${langName}
+- REGLA CRÍTICA: Responde SIEMPRE en el mismo idioma en que te escriban, sin importar el idioma de la app
+- Si detectas que el usuario escribe en un idioma diferente al de la app, pregúntale UNA SOLA VEZ su preferencia
+- Después de elegir, mantén ese idioma consistentemente
+- Si el usuario cambia de idioma espontáneamente, adáptate sin preguntar
+
+CONTEXTO DEL USUARIO:
+${profileInfo}
+${workoutsInfo}
+
+REGLAS DE RESPUESTA:
+1. Máximo ${CONFIG.RESPONSE_MAX_WORDS} palabras por respuesta
+2. Sé específico y accionable (da 2-3 consejos concretos)
+3. Si es relevante, menciona sus entrenamientos recientes
+4. Usa máximo 2 emojis por mensaje (sin abusar)
+5. Termina con motivación cuando sea apropiado
+6. No inventes datos que no tienes
+7. Si preguntan algo fuera de fitness, redirige amablemente al tema
+
+FORMATO:
+- Párrafos cortos y claros
+- Bullet points para listas de consejos
+- Lenguaje natural y cercano
+
+EJEMPLOS DE TONO:
+✅ Correcto: "Perfecto objetivo. Veo que en tu último EMOM notaste fatiga en ciclos finales. Te sugiero: 1) Pacing controlado..."
+❌ Incorrecto: "Como tu entrenador te digo que hagas burpees todos los días sin descanso..."
+
+RECUERDA: Eres un coach real, no un chatbot genérico. Usa el contexto del usuario para personalizar cada respuesta.
+      `.trim();
+    }
+
+    // ------------------------------------------------------------------------
+    // OBTENCIÓN DE DATOS
+    // ------------------------------------------------------------------------
+
+    detectUserLanguage(userMessage) {
+      if (this.userPreferredLanguage) {
+        return this.userPreferredLanguage;
+      }
+
+      const messageLang = this.detectLanguageFromMessage(userMessage);
+      const appLang = this.getAppLanguage();
+
+      if (messageLang && messageLang !== appLang) {
+        this.userPreferredLanguage = messageLang;
+        return messageLang;
+      }
+
+      return appLang;
+    }
+
+    detectLanguageFromMessage(text) {
+      if (!text) {
+        return null;
+      }
+
+      const lang = this.getAppLanguage();
+      const hasAscii = /[a-z]/i.test(text);
+      const hasAccents = /[áéíóúñü]/i.test(text);
+      const hasGerman = /[äöüß]/i.test(text);
+      const hasFrench = /[çàèéêîôûëïü]/i.test(text);
+      const hasItalian = /[àèéìòù]/i.test(text);
+      const hasPortuguese = /[ãõáâéêíóôúç]/i.test(text);
+      const hasChinese = /[\u4e00-\u9fff]/.test(text);
+
+      if (hasChinese) return 'zh';
+      if (hasPortuguese) return 'pt';
+      if (hasItalian) return 'it';
+      if (hasFrench) return 'fr';
+      if (hasGerman) return 'de';
+      if (hasAccents && !hasGerman && !hasFrench && !hasItalian && !hasPortuguese) return 'es';
+      if (hasAscii) return 'en';
+      return lang;
     }
 
     getAppLanguage() {
-      return (navigator.language || 'es').split('-')[0];
+      if (this.userPreferredLanguage) {
+        return this.userPreferredLanguage;
+      }
+
+      if (window.TranslationUtil && typeof window.TranslationUtil.getLanguage === 'function') {
+        try {
+          return window.TranslationUtil.getLanguage();
+        } catch (error) {
+          console.warn('Error obteniendo idioma de TranslationUtil:', error);
+        }
+      }
+
+      const navLang = navigator.language || navigator.userLanguage || 'en';
+      return (navLang || 'en').split('-')[0];
     }
 
     getUserProfile() {
-      try {
-        const id = window.ProfilesManager?.getActiveProfileId() || 'default';
-        return window.StorageUtil?.getProfileData(id) || {};
-      } catch (e) { return {}; }
+      if (window.ProfilesManager && typeof window.ProfilesManager.getActiveProfileId === 'function') {
+        try {
+          const profileId = window.ProfilesManager.getActiveProfileId();
+          if (profileId) {
+            return this.getProfileDataById(profileId);
+          }
+        } catch (error) {
+          console.warn('Error obteniendo perfil de ProfilesManager:', error);
+        }
+      }
+
+      const currentProfileId = window.StorageUtil && typeof window.StorageUtil.getCurrentProfileId === 'function'
+        ? window.StorageUtil.getCurrentProfileId()
+        : 'default';
+      return this.getProfileDataById(currentProfileId);
+    }
+
+    getProfileDataById(profileId) {
+      if (window.StorageUtil && typeof window.StorageUtil.getProfileData === 'function') {
+        return window.StorageUtil.getProfileData(profileId) || {};
+      }
+      return {};
     }
 
     getRecentWorkouts() {
-      try {
-        const history = window.StorageUtil?.getHistory('emom') || [];
-        return history.slice(0, CONFIG.MAX_WORKOUTS);
-      } catch (e) { return []; }
+      if (!window.StorageUtil || typeof window.StorageUtil.getHistory !== 'function') {
+        return [];
+      }
+
+      const timerTypes = ['emom', 'tabata', 'fortime', 'amrap'];
+      const allWorkouts = [];
+
+      timerTypes.forEach(type => {
+        const history = window.StorageUtil.getHistory(type) || [];
+        history.forEach(entry => {
+          allWorkouts.push({
+            type,
+            ...entry
+          });
+        });
+      });
+
+      allWorkouts.sort((a, b) => {
+        if (!a.timestamp) return 1;
+        if (!b.timestamp) return -1;
+        return b.timestamp - a.timestamp;
+      });
+
+      return allWorkouts.slice(0, CONFIG.MAX_WORKOUTS);
     }
+
+    // ------------------------------------------------------------------------
+    // PERSISTENCIA
+    // ------------------------------------------------------------------------
 
     loadChatHistory() {
       try {
         const saved = localStorage.getItem('aiTrainerChatHistory');
         if (saved) {
-          this.chatHistory = JSON.parse(saved);
-          this.chatHistory.forEach(m => this.addMessageToDOM(m.text, m.role));
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            this.chatHistory = parsed;
+            this.chatHistory.forEach(message => {
+              this.addMessageToDOM(message.text, message.role);
+            });
+          }
         }
-      } catch (e) {}
-    }
-
-    addMessageToDOM(text, role) {
-      const container = document.getElementById('aiChatMessages');
-      if (!container) return;
-      const div = document.createElement('div');
-      div.className = `ai-chat-message ai-chat-message-${role}`;
-      div.innerHTML = `<div class="ai-chat-bubble">${text}</div>`;
-      container.appendChild(div);
+      } catch (error) {
+        console.warn('Error cargando historial de chat:', error);
+      }
     }
 
     saveChatHistory() {
-      localStorage.setItem('aiTrainerChatHistory', JSON.stringify(this.chatHistory));
+      try {
+        localStorage.setItem('aiTrainerChatHistory', JSON.stringify(this.chatHistory));
+      } catch (error) {
+        console.warn('Error guardando historial de chat:', error);
+      }
+    }
+
+    clearHistory() {
+      this.chatHistory = [];
+      localStorage.removeItem('aiTrainerChatHistory');
+      const messagesContainer = document.getElementById('aiChatMessages');
+      if (messagesContainer) {
+        messagesContainer.innerHTML = '';
+      }
+      this.sendWelcomeMessage();
     }
   }
 
-  // Inicialización
+  // ============================================================================
+  // INICIALIZACIÓN AUTOMÁTICA
+  // ============================================================================
+
+  function initAIChat() {
+    setTimeout(() => {
+      if (!window.aiTrainerChat) {
+        window.aiTrainerChat = new AITrainerChat();
+      }
+    }, 500);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => window.aiTrainerChat = new AITrainerChat());
+    document.addEventListener('DOMContentLoaded', initAIChat);
   } else {
-    window.aiTrainerChat = new AITrainerChat();
+    initAIChat();
   }
 })();

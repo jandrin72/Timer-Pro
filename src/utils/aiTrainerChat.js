@@ -9,9 +9,9 @@
   // ============================================================================
   // CONFIGURACIÓN
   // ============================================================================
-  
+
   const CONFIG = {
-    PERPLEXITY_API_KEY: '', // TU API KEY DE PERPLEXITY AQUÍ (formato: pplx-...)
+    PERPLEXITY_API_KEY: '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',
     PERPLEXITY_API_URL: 'https://api.perplexity.ai/chat/completions',
     PERPLEXITY_PROXY_URL: '', // Opcional: proxy con CORS habilitado (por ejemplo, tu propio backend)
     PERPLEXITY_MODEL_ID: 'sonar',
@@ -19,121 +19,54 @@
     MAX_HISTORY: 10,
     MAX_WORKOUTS: 5,
     RESPONSE_MAX_WORDS: 150,
-    
+
+    // Mapeo de códigos de idioma a nombres completos
     LANGUAGE_NAMES: {
-      'es': 'español',
-      'en': 'English',
-      'de': 'Deutsch',
-      'fr': 'français',
-      'it': 'italiano',
-      'pt': 'português',
-      'zh': '中文'
+      es: 'español',
+      en: 'English',
+      de: 'Deutsch',
+      fr: 'français',
+      it: 'italiano',
+      pt: 'português',
+      zh: '中文'
     }
   };
 
   // ============================================================================
   // CLASE PRINCIPAL
   // ============================================================================
-  
+
   class AITrainerChat {
     constructor() {
       this.chatHistory = [];
       this.isOpen = false;
       this.isLoading = false;
       this.userPreferredLanguage = null;
-      this.currentProfileId = null;
-      
+      this.cachedPerplexityKey = null;
+
       this.init();
     }
 
     // ------------------------------------------------------------------------
     // INICIALIZACIÓN
     // ------------------------------------------------------------------------
-    
+
     init() {
       this.createUI();
       this.bindEvents();
-      this.loadCurrentProfile();
       this.loadChatHistory();
-      this.setupProfileChangeListener();
-      console.log('✅ AI Trainer Chat inicializado (v2.4 - Fecha/Hora completa)');
-    }
-
-    // ------------------------------------------------------------------------
-    // GESTIÓN DE PERFILES
-    // ------------------------------------------------------------------------
-    
-    loadCurrentProfile() {
-      this.currentProfileId = this.getCurrentProfileId();
-    }
-
-    getCurrentProfileId() {
-      if (window.StorageUtil && typeof window.StorageUtil.getCurrentProfileId === 'function') {
-        return window.StorageUtil.getCurrentProfileId();
-      }
-      return 'default';
-    }
-
-    getChatStorageKey() {
-      return `aiTrainerChat_perfil_${this.currentProfileId}`;
-    }
-
-    setupProfileChangeListener() {
-      const profileIndicator = document.getElementById('currentProfileName');
-      
-      if (profileIndicator) {
-        const observer = new MutationObserver(() => {
-          const newProfileId = this.getCurrentProfileId();
-          if (newProfileId !== this.currentProfileId) {
-            console.log(`🔄 Cambio de perfil: ${this.currentProfileId} → ${newProfileId}`);
-            this.handleProfileSwitch(newProfileId);
-          }
-        });
-        
-        observer.observe(profileIndicator, { 
-          childList: true, 
-          characterData: true, 
-          subtree: true 
-        });
-      }
-
-      setInterval(() => {
-        const newProfileId = this.getCurrentProfileId();
-        if (newProfileId !== this.currentProfileId) {
-          this.handleProfileSwitch(newProfileId);
-        }
-      }, 2000);
-    }
-
-    handleProfileSwitch(newProfileId) {
-      if (this.currentProfileId) {
-        this.saveChatHistory();
-      }
-
-      this.currentProfileId = newProfileId;
-      this.clearChatUI();
-      this.loadChatHistory();
-
-      if (this.isOpen && this.chatHistory.length === 0) {
-        this.sendWelcomeMessage();
-      }
-
-      console.log(`✅ Chat cargado para perfil: ${newProfileId}`);
-    }
-
-    clearChatUI() {
-      const messagesContainer = document.getElementById('aiChatMessages');
-      if (messagesContainer) {
-        messagesContainer.innerHTML = '';
-      }
+      console.log('✅ AI Trainer Chat inicializado con Perplexity Sonar');
     }
 
     // ------------------------------------------------------------------------
     // CREACIÓN DE UI
     // ------------------------------------------------------------------------
-    
+
     createUI() {
-      // Botón flotante
+      if (document.getElementById('aiChatFloatingBtn')) {
+        return;
+      }
+
       const floatingBtn = document.createElement('button');
       floatingBtn.id = 'aiChatFloatingBtn';
       floatingBtn.className = 'ai-chat-floating-btn';
@@ -141,38 +74,27 @@
       floatingBtn.setAttribute('aria-label', 'Abrir chat con entrenador IA');
       document.body.appendChild(floatingBtn);
 
-      // Modal de chat
       const modalHTML = `
         <div id="aiChatModal" class="ai-chat-modal">
           <div class="ai-chat-container">
-            <!-- Header -->
             <div class="ai-chat-header">
               <div class="ai-chat-header-info">
                 <span class="ai-chat-avatar">🤖</span>
                 <div>
                   <div class="ai-chat-title">Coach Timer Pro</div>
-                  <div class="ai-chat-subtitle" id="aiChatSubtitle">Tu entrenador personal IA</div>
+                  <div class="ai-chat-subtitle">Tu entrenador personal IA</div>
                 </div>
               </div>
-              <div class="ai-chat-header-actions">
-                <button id="aiChatClearBtn" class="ai-chat-clear-btn" title="Limpiar historial">
-                  🗑️
-                </button>
-                <button id="aiChatCloseBtn" class="ai-chat-close-btn">✕</button>
-              </div>
+              <button id="aiChatCloseBtn" class="ai-chat-close-btn">✕</button>
             </div>
 
-            <!-- Mensajes -->
-            <div id="aiChatMessages" class="ai-chat-messages">
-              <!-- Los mensajes se insertan aquí dinámicamente -->
-            </div>
+            <div id="aiChatMessages" class="ai-chat-messages"></div>
 
-            <!-- Input -->
             <div class="ai-chat-input-container">
-              <input 
-                type="text" 
-                id="aiChatInput" 
-                class="ai-chat-input" 
+              <input
+                type="text"
+                id="aiChatInput"
+                class="ai-chat-input"
                 placeholder="Escribe tu pregunta..."
                 autocomplete="off"
               />
@@ -183,18 +105,17 @@
           </div>
         </div>
       `;
-      
+
       document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
 
     // ------------------------------------------------------------------------
     // EVENT LISTENERS
     // ------------------------------------------------------------------------
-    
+
     bindEvents() {
       const floatingBtn = document.getElementById('aiChatFloatingBtn');
       const closeBtn = document.getElementById('aiChatCloseBtn');
-      const clearBtn = document.getElementById('aiChatClearBtn');
       const sendBtn = document.getElementById('aiChatSendBtn');
       const input = document.getElementById('aiChatInput');
       const modal = document.getElementById('aiChatModal');
@@ -207,26 +128,22 @@
         closeBtn.addEventListener('click', () => this.closeChat());
       }
 
-      if (clearBtn) {
-        clearBtn.addEventListener('click', () => this.confirmClearHistory());
-      }
-
       if (sendBtn) {
         sendBtn.addEventListener('click', () => this.sendMessage());
       }
 
       if (input) {
-        input.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
+        input.addEventListener('keypress', event => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
             this.sendMessage();
           }
         });
       }
 
       if (modal) {
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) {
+        modal.addEventListener('click', event => {
+          if (event.target === modal) {
             this.closeChat();
           }
         });
@@ -234,57 +151,19 @@
     }
 
     // ------------------------------------------------------------------------
-    // LIMPIAR HISTORIAL
-    // ------------------------------------------------------------------------
-    
-    confirmClearHistory() {
-      const appLang = this.getAppLanguage();
-      const profile = this.getUserProfile();
-      const profileName = profile.name || 'este perfil';
-      
-      const confirmMessages = {
-        'es': `¿Borrar todo el historial de conversación con ${profileName}?\n\nEsta acción no se puede deshacer.`,
-        'en': `Delete all conversation history with ${profileName}?\n\nThis action cannot be undone.`,
-        'de': `Gesamte Gesprächsverlauf mit ${profileName} löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.`,
-        'fr': `Supprimer tout l'historique de conversation avec ${profileName} ?\n\nCette action est irréversible.`,
-        'it': `Eliminare tutta la cronologia delle conversazioni con ${profileName}?\n\nQuesta azione non può essere annullata.`,
-        'pt': `Excluir todo o histórico de conversa com ${profileName}?\n\nEsta ação não pode ser desfeita.`,
-        'zh': `删除与 ${profileName} 的所有对话历史记录？\n\n此操作无法撤消。`
-      };
-      
-      const confirmMsg = confirmMessages[appLang] || confirmMessages['en'];
-      
-      if (confirm(confirmMsg)) {
-        this.clearHistory();
-      }
-    }
-
-    clearHistory() {
-      const storageKey = this.getChatStorageKey();
-      this.chatHistory = [];
-      localStorage.removeItem(storageKey);
-      this.clearChatUI();
-      this.sendWelcomeMessage();
-      
-      console.log(`🗑️ Historial borrado para perfil ${this.currentProfileId}`);
-    }
-
-    // ------------------------------------------------------------------------
     // GESTIÓN DE CHAT
     // ------------------------------------------------------------------------
-    
+
     openChat() {
       const modal = document.getElementById('aiChatModal');
       if (modal) {
         modal.classList.add('active');
         this.isOpen = true;
-        
-        this.updateChatSubtitle();
-        
+
         if (this.chatHistory.length === 0) {
           this.sendWelcomeMessage();
         }
-        
+
         const input = document.getElementById('aiChatInput');
         if (input) {
           setTimeout(() => input.focus(), 100);
@@ -300,56 +179,39 @@
       }
     }
 
-    updateChatSubtitle() {
-      const subtitle = document.getElementById('aiChatSubtitle');
-      if (!subtitle) return;
-
-      const profile = this.getUserProfile();
-      const profileName = profile.name || 'Atleta';
-      
-      const appLang = this.getAppLanguage();
-      const subtitles = {
-        'es': `Conversación con ${profileName}`,
-        'en': `Conversation with ${profileName}`,
-        'de': `Gespräch mit ${profileName}`,
-        'fr': `Conversation avec ${profileName}`,
-        'it': `Conversazione con ${profileName}`,
-        'pt': `Conversa com ${profileName}`,
-        'zh': `与 ${profileName} 的对话`
-      };
-      
-      subtitle.textContent = subtitles[appLang] || subtitles['en'];
-    }
-
     // ------------------------------------------------------------------------
     // MENSAJES
     // ------------------------------------------------------------------------
-    
-    sendWelcomeMessage() {
+
+    async sendWelcomeMessage() {
       const appLang = this.getAppLanguage();
       const profile = this.getUserProfile();
       const userName = profile.name || 'atleta';
-      
+
       const welcomeMessages = {
-        'es': `¡Hola ${userName}! 👋 Soy tu Coach Timer Pro. ¿En qué puedo ayudarte hoy?`,
-        'en': `Hello ${userName}! 👋 I'm your Coach Timer Pro. How can I help you today?`,
-        'de': `Hallo ${userName}! 👋 Ich bin dein Coach Timer Pro. Wie kann ich dir helfen?`,
-        'fr': `Bonjour ${userName}! 👋 Je suis votre Coach Timer Pro. Comment puis-je vous aider?`,
-        'it': `Ciao ${userName}! 👋 Sono il tuo Coach Timer Pro. Come posso aiutarti?`,
-        'pt': `Olá ${userName}! 👋 Sou seu Coach Timer Pro. Como posso ajudar?`,
-        'zh': `你好 ${userName}! 👋 我是你的 Coach Timer Pro。我能帮你什么?`
+        es: `¡Hola ${userName}! 👋 Soy tu Coach Timer Pro. ¿En qué puedo ayudarte hoy?`,
+        en: `Hello ${userName}! 👋 I'm your Coach Timer Pro. How can I help you today?`,
+        de: `Hallo ${userName}! 👋 Ich bin dein Coach Timer Pro. Wie kann ich dir helfen?`,
+        fr: `Bonjour ${userName}! 👋 Je suis votre Coach Timer Pro. Comment puis-je vous aider?`,
+        it: `Ciao ${userName}! 👋 Sono il tuo Coach Timer Pro. Come posso aiutarti?`,
+        pt: `Olá ${userName}! 👋 Sou seu Coach Timer Pro. Como posso ajudar?`,
+        zh: `你好 ${userName}! 👋 我是你的 Coach Timer Pro。我能帮你什么?`
       };
-      
-      const welcomeMsg = welcomeMessages[appLang] || welcomeMessages['en'];
+
+      const welcomeMsg = welcomeMessages[appLang] || welcomeMessages.en;
       this.addMessage(welcomeMsg, 'assistant');
     }
 
     async sendMessage() {
       const input = document.getElementById('aiChatInput');
-      if (!input || this.isLoading) return;
+      if (!input || this.isLoading) {
+        return;
+      }
 
       const userMessage = input.value.trim();
-      if (!userMessage) return;
+      if (!userMessage) {
+        return;
+      }
 
       input.value = '';
       this.addMessage(userMessage, 'user');
@@ -364,7 +226,7 @@
       } catch (error) {
         console.error('❌ Error:', error);
         this.hideTypingIndicator();
-        
+
         const appLang = this.getAppLanguage();
         const friendlyDetail = this.buildFriendlyError(error);
         const errorMessages = {
@@ -376,7 +238,7 @@
           'pt': '❌ Erro de conexão. Verifique sua chave API e CORS.',
           'zh': '❌ 连接错误。检查您的 API 密钥和 CORS。'
         };
-        
+
         const errorMsg = errorMessages[appLang] || errorMessages['en'];
         this.addMessage(`${errorMsg}\n\n${friendlyDetail}`, 'assistant');
       } finally {
@@ -386,29 +248,41 @@
 
     addMessage(text, role) {
       const messagesContainer = document.getElementById('aiChatMessages');
-      if (!messagesContainer) return;
+      if (!messagesContainer) {
+        return;
+      }
 
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `ai-chat-message ai-chat-message-${role}`;
-      
-      const bubble = document.createElement('div');
-      bubble.className = 'ai-chat-bubble';
-      bubble.textContent = text;
-      
-      messageDiv.appendChild(bubble);
-      messagesContainer.appendChild(messageDiv);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      this.addMessageToDOM(text, role);
 
       this.chatHistory.push({ role, text, timestamp: Date.now() });
-      
       if (this.chatHistory.length > CONFIG.MAX_HISTORY * 2) {
         this.chatHistory = this.chatHistory.slice(-CONFIG.MAX_HISTORY * 2);
       }
     }
 
+    addMessageToDOM(text, role) {
+      const messagesContainer = document.getElementById('aiChatMessages');
+      if (!messagesContainer) {
+        return;
+      }
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `ai-chat-message ai-chat-message-${role}`;
+
+      const bubble = document.createElement('div');
+      bubble.className = 'ai-chat-bubble';
+      bubble.textContent = text;
+
+      messageDiv.appendChild(bubble);
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
     showTypingIndicator() {
       const messagesContainer = document.getElementById('aiChatMessages');
-      if (!messagesContainer) return;
+      if (!messagesContainer || document.getElementById('aiTypingIndicator')) {
+        return;
+      }
 
       const typingDiv = document.createElement('div');
       typingDiv.id = 'aiTypingIndicator';
@@ -418,7 +292,7 @@
           <span></span><span></span><span></span>
         </div>
       `;
-      
+
       messagesContainer.appendChild(typingDiv);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
@@ -503,7 +377,7 @@
 
       const responseText = await response.text();
       let data = null;
-      
+
       try {
         data = responseText ? JSON.parse(responseText) : null;
       } catch (parseError) {
@@ -543,264 +417,238 @@
     }
 
     // ------------------------------------------------------------------------
-    // CONSTRUCCIÓN DEL PROMPT (v2.4 - CON FECHA Y HORA)
+    // CONSTRUCCIÓN DEL PROMPT
     // ------------------------------------------------------------------------
-    
+
     buildSystemPrompt(appLang, profile, workouts) {
       const langName = CONFIG.LANGUAGE_NAMES[appLang] || 'English';
-      
-      // Información del perfil
-      let profileInfo = `PERFIL DEL USUARIO:\n`;
+
+      let profileInfo = 'PERFIL DEL USUARIO:\n';
       if (profile.name) profileInfo += `- Nombre: ${profile.name}\n`;
       if (profile.age) profileInfo += `- Edad: ${profile.age} años\n`;
       if (profile.biologicalSex) profileInfo += `- Sexo: ${profile.biologicalSex}\n`;
-      if (profile.fitnessLevel) profileInfo += `- Nivel: ${profile.fitnessLevel}\n`;
+      if (profile.fitnessLevel) profileInfo += `- Nivel fitness: ${profile.fitnessLevel}\n`;
       if (profile.goal) profileInfo += `- Objetivo: ${profile.goal}\n`;
-      if (profile.trainingDays) profileInfo += `- Días/semana: ${profile.trainingDays}\n`;
+      if (profile.trainingDays) profileInfo += `- Días entrenamiento/semana: ${profile.trainingDays}\n`;
       if (profile.experience) profileInfo += `- Experiencia: ${profile.experience}\n`;
       if (profile.limitations) profileInfo += `- Limitaciones: ${profile.limitations}\n`;
 
-      // Últimos entrenamientos (CON FECHA Y HORA COMPLETAS)
-      let workoutsInfo = `\nÚLTIMOS ENTRENAMIENTOS (detallados):\n`;
-      
-      if (workouts.length === 0) {
+      let workoutsInfo = '\nÚLTIMOS ENTRENAMIENTOS:\n';
+      if (!workouts.length) {
         workoutsInfo += '- Aún no hay entrenamientos registrados\n';
       } else {
-        workouts.forEach((w, i) => {
-          // Formatear fecha y hora
-          let dateTimeStr = 'Fecha desconocida';
-          if (w.timestamp) {
-            const dateObj = new Date(w.timestamp);
-            const date = dateObj.toLocaleDateString('es-ES', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: 'numeric' 
-            });
-            const time = dateObj.toLocaleTimeString('es-ES', { 
-              hour: '2-digit', 
-              minute: '2-digit',
-              hour12: false 
-            });
-            dateTimeStr = `${date} a las ${time}`;
-          }
-          
-          const type = w.type ? w.type.toUpperCase() : 'DESCONOCIDO';
-          
-          workoutsInfo += `\n${i + 1}. ${dateTimeStr} - ${type}:\n`;
-          
-          // Detalles específicos por tipo de timer
-          switch(w.type) {
-            case 'emom':
-              if (w.cycles) workoutsInfo += `   • Ciclos completados: ${w.cycles}\n`;
-              if (w.secondsPerCycle) workoutsInfo += `   • Segundos por ciclo: ${w.secondsPerCycle}s\n`;
-              if (w.totalTime) {
-                const totalMin = Math.floor(w.totalTime / 60);
-                workoutsInfo += `   • Tiempo total: ${totalMin}min ${w.totalTime % 60}s\n`;
-              }
-              break;
-              
-            case 'tabata':
-              if (w.cycles) workoutsInfo += `   • Ciclos completados: ${w.cycles}\n`;
-              if (w.work) workoutsInfo += `   • Trabajo: ${w.work}s\n`;
-              if (w.rest) workoutsInfo += `   • Descanso: ${w.rest}s\n`;
-              if (w.totalTime) {
-                const totalMin = Math.floor(w.totalTime / 60);
-                workoutsInfo += `   • Duración total: ${totalMin}min ${w.totalTime % 60}s\n`;
-              }
-              break;
-              
-            case 'fortime':
-              if (w.finalTime !== undefined && w.finalTime !== null) {
-                const minutes = Math.floor(w.finalTime / 60000);
-                const seconds = Math.floor((w.finalTime % 60000) / 1000);
-                const centiseconds = Math.floor((w.finalTime % 1000) / 10);
-                workoutsInfo += `   • Tiempo final: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}\n`;
-              }
-              
-              if (w.timeCap) {
-                const capMin = Math.floor(w.timeCap / 60000);
-                workoutsInfo += `   • Time Cap: ${capMin}min\n`;
-              }
-              
-              if (w.laps && Array.isArray(w.laps) && w.laps.length > 0) {
-                workoutsInfo += `   • Laps completados: ${w.laps.length}\n`;
-                w.laps.forEach((lapTime, idx) => {
-                  const minutes = Math.floor(lapTime / 60000);
-                  const seconds = Math.floor((lapTime % 60000) / 1000);
-                  const centiseconds = Math.floor((lapTime % 1000) / 10);
-                  workoutsInfo += `     - Lap ${idx + 1}: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(centiseconds).padStart(2, '0')}\n`;
-                });
-              }
-              
-              // Estado de completado
-              if (w.finalTime && w.timeCap) {
-                const completado = w.finalTime < w.timeCap;
-                workoutsInfo += `   • Estado: ${completado ? 'Completado' : 'No completado (alcanzó time cap)'}\n`;
-              }
-              break;
-              
-            case 'amrap':
-              if (w.rounds) workoutsInfo += `   • Rondas completadas: ${w.rounds}\n`;
-              if (w.duration) {
-                const durationMin = Math.floor(w.duration / 60000);
-                workoutsInfo += `   • Duración: ${durationMin}min\n`;
-              }
-              break;
-          }
-          
-          // RPE (común para todos)
-          if (w.rpe) {
-            const rpeValue = this.extractRPEValue(w.rpe);
-            workoutsInfo += `   • RPE: ${rpeValue}/10\n`;
-          }
-          
-          // Notas (común para todos)
-          if (w.notes && w.notes.trim()) {
-            workoutsInfo += `   • Notas: "${w.notes.trim()}"\n`;
-          }
+        workouts.forEach((workout, index) => {
+          const date = workout.timestamp ? new Date(workout.timestamp).toLocaleDateString() : 'N/A';
+          workoutsInfo += `${index + 1}. ${date}: ${workout.type.toUpperCase()} | `;
+          workoutsInfo += `${workout.config || 'N/A'} | `;
+          workoutsInfo += `${workout.completed ? 'Completado' : 'No completado'} | `;
+          if (workout.rpe) workoutsInfo += `RPE ${workout.rpe}/10 | `;
+          if (workout.notes) workoutsInfo += `"${workout.notes}"`;
+          workoutsInfo += '\n';
         });
       }
 
       return `
 IDENTIDAD:
-Eres "Coach Timer Pro", un entrenador personal experto en CrossFit y fitness funcional.
+Eres "Coach Timer Pro", un entrenador personal experto en CrossFit, fitness funcional y HIIT.
+Tu personalidad es motivadora, profesional, empática y específica.
+Conoces el contexto completo del usuario (perfil, objetivos, limitaciones, historial de entrenamientos).
 
 IDIOMA:
-- Idioma de la app: ${langName}
-- Responde SIEMPRE en el idioma que te escriban
+- Idioma de la interfaz de la app: ${langName}
+- REGLA CRÍTICA: Responde SIEMPRE en el mismo idioma en que te escriban, sin importar el idioma de la app
+- Si detectas que el usuario escribe en un idioma diferente al de la app, pregúntale UNA SOLA VEZ su preferencia
+- Después de elegir, mantén ese idioma consistentemente
+- Si el usuario cambia de idioma espontáneamente, adáptate sin preguntar
 
-CONTEXTO:
+CONTEXTO DEL USUARIO:
 ${profileInfo}
 ${workoutsInfo}
 
-REGLAS:
-1. Máximo ${CONFIG.RESPONSE_MAX_WORDS} palabras
-2. 2-3 consejos específicos y accionables
-3. Menciona entrenamientos recientes si es relevante (usa los datos detallados arriba, incluyendo fecha y hora)
-4. Máximo 2 emojis por mensaje
-5. Termina con motivación
+REGLAS DE RESPUESTA:
+1. Máximo ${CONFIG.RESPONSE_MAX_WORDS} palabras por respuesta
+2. Sé específico y accionable (da 2-3 consejos concretos)
+3. Si es relevante, menciona sus entrenamientos recientes
+4. Usa máximo 2 emojis por mensaje (sin abusar)
+5. Termina con motivación cuando sea apropiado
+6. No inventes datos que no tienes
+7. Si preguntan algo fuera de fitness, redirige amablemente al tema
 
-IMPORTANTE: 
-- Tienes TODOS los datos del entrenamiento (fecha, hora, tiempos, laps, rounds, RPE, notas)
-- Si el usuario pregunta "cuándo entrené" o "a qué hora", usa la fecha y hora exactas
-- Puedes calcular días transcurridos desde el último entreno
-- Si preguntan por un entreno específico de una fecha/hora, busca en la lista
+FORMATO:
+- Párrafos cortos y claros
+- Bullet points para listas de consejos
+- Lenguaje natural y cercano
 
-RECUERDA: Personaliza con el contexto del usuario.
-`.trim();
-    }
+EJEMPLOS DE TONO:
+✅ Correcto: "Perfecto objetivo. Veo que en tu último EMOM notaste fatiga en ciclos finales. Te sugiero: 1) Pacing controlado..."
+❌ Incorrecto: "Como tu entrenador te digo que hagas burpees todos los días sin descanso..."
 
-    // ------------------------------------------------------------------------
-    // FUNCIÓN AUXILIAR: Extraer valor RPE
-    // ------------------------------------------------------------------------
-    
-    extractRPEValue(rpeKey) {
-      if (!rpeKey) return 'N/A';
-      
-      // Si ya es un número, retornar
-      if (!isNaN(rpeKey)) return rpeKey;
-      
-      // Extraer número del string tipo "rpeemom8" o "RPE 8/10"
-      const match = String(rpeKey).match(/(\d{1,2})/);
-      return match ? match[1] : 'N/A';
+RECUERDA: Eres un coach real, no un chatbot genérico. Usa el contexto del usuario para personalizar cada respuesta.
+      `.trim();
     }
 
     // ------------------------------------------------------------------------
     // OBTENCIÓN DE DATOS
     // ------------------------------------------------------------------------
-    
-    getAppLanguage() {
-      if (window.TranslationUtil && typeof window.TranslationUtil.getLanguage === 'function') {
-        return window.TranslationUtil.getLanguage();
+
+    detectUserLanguage(userMessage) {
+      if (this.userPreferredLanguage) {
+        return this.userPreferredLanguage;
       }
+
+      const messageLang = this.detectLanguageFromMessage(userMessage);
+      const appLang = this.getAppLanguage();
+
+      if (messageLang && messageLang !== appLang) {
+        this.userPreferredLanguage = messageLang;
+        return messageLang;
+      }
+
+      return appLang;
+    }
+
+    detectLanguageFromMessage(text) {
+      if (!text) {
+        return null;
+      }
+
+      const lang = this.getAppLanguage();
+      const hasAscii = /[a-z]/i.test(text);
+      const hasAccents = /[áéíóúñü]/i.test(text);
+      const hasGerman = /[äöüß]/i.test(text);
+      const hasFrench = /[çàèéêîôûëïü]/i.test(text);
+      const hasItalian = /[àèéìòù]/i.test(text);
+      const hasPortuguese = /[ãõáâéêíóôúç]/i.test(text);
+      const hasChinese = /[\u4e00-\u9fff]/.test(text);
+
+      if (hasChinese) return 'zh';
+      if (hasPortuguese) return 'pt';
+      if (hasItalian) return 'it';
+      if (hasFrench) return 'fr';
+      if (hasGerman) return 'de';
+      if (hasAccents && !hasGerman && !hasFrench && !hasItalian && !hasPortuguese) return 'es';
+      if (hasAscii) return 'en';
+      return lang;
+    }
+
+    getAppLanguage() {
+      if (this.userPreferredLanguage) {
+        return this.userPreferredLanguage;
+      }
+
+      if (window.TranslationUtil && typeof window.TranslationUtil.getLanguage === 'function') {
+        try {
+          return window.TranslationUtil.getLanguage();
+        } catch (error) {
+          console.warn('Error obteniendo idioma de TranslationUtil:', error);
+        }
+      }
+
       const navLang = navigator.language || navigator.userLanguage || 'en';
-      return navLang.split('-')[0];
+      return (navLang || 'en').split('-')[0];
     }
 
     getUserProfile() {
+      if (window.ProfilesManager && typeof window.ProfilesManager.getActiveProfileId === 'function') {
+        try {
+          const profileId = window.ProfilesManager.getActiveProfileId();
+          if (profileId) {
+            return this.getProfileDataById(profileId);
+          }
+        } catch (error) {
+          console.warn('Error obteniendo perfil de ProfilesManager:', error);
+        }
+      }
+
+      const currentProfileId = window.StorageUtil && typeof window.StorageUtil.getCurrentProfileId === 'function'
+        ? window.StorageUtil.getCurrentProfileId()
+        : 'default';
+      return this.getProfileDataById(currentProfileId);
+    }
+
+    getProfileDataById(profileId) {
       if (window.StorageUtil && typeof window.StorageUtil.getProfileData === 'function') {
-        const profileId = this.currentProfileId || this.getCurrentProfileId();
         return window.StorageUtil.getProfileData(profileId) || {};
       }
       return {};
     }
 
     getRecentWorkouts() {
-      if (!window.StorageUtil) return [];
+      if (!window.StorageUtil || typeof window.StorageUtil.getHistory !== 'function') {
+        return [];
+      }
 
       const timerTypes = ['emom', 'tabata', 'fortime', 'amrap'];
       const allWorkouts = [];
 
       timerTypes.forEach(type => {
         const history = window.StorageUtil.getHistory(type) || [];
-        history.forEach(workout => {
-          allWorkouts.push({ type, ...workout });
+        history.forEach(entry => {
+          allWorkouts.push({
+            type,
+            ...entry
+          });
         });
       });
 
-      allWorkouts.sort((a, b) => b.timestamp - a.timestamp);
+      allWorkouts.sort((a, b) => {
+        if (!a.timestamp) return 1;
+        if (!b.timestamp) return -1;
+        return b.timestamp - a.timestamp;
+      });
+
       return allWorkouts.slice(0, CONFIG.MAX_WORKOUTS);
     }
 
     // ------------------------------------------------------------------------
     // PERSISTENCIA
     // ------------------------------------------------------------------------
-    
+
     loadChatHistory() {
       try {
-        const storageKey = this.getChatStorageKey();
-        const saved = localStorage.getItem(storageKey);
-        
+        const saved = localStorage.getItem('aiTrainerChatHistory');
         if (saved) {
           const parsed = JSON.parse(saved);
-          this.chatHistory = Array.isArray(parsed) ? parsed : [];
-          
-          this.chatHistory.forEach(msg => {
-            this.addMessageToDOM(msg.text, msg.role);
-          });
-          
-          console.log(`📂 Historial cargado: ${this.chatHistory.length} mensajes`);
-        } else {
-          this.chatHistory = [];
+          if (Array.isArray(parsed)) {
+            this.chatHistory = parsed;
+            this.chatHistory.forEach(message => {
+              this.addMessageToDOM(message.text, message.role);
+            });
+          }
         }
       } catch (error) {
-        console.warn('⚠️ Error cargando historial:', error);
-        this.chatHistory = [];
+        console.warn('Error cargando historial de chat:', error);
       }
     }
 
     saveChatHistory() {
       try {
-        const storageKey = this.getChatStorageKey();
-        localStorage.setItem(storageKey, JSON.stringify(this.chatHistory));
+        localStorage.setItem('aiTrainerChatHistory', JSON.stringify(this.chatHistory));
       } catch (error) {
-        console.warn('⚠️ Error guardando historial:', error);
+        console.warn('Error guardando historial de chat:', error);
       }
     }
 
-    addMessageToDOM(text, role) {
+    clearHistory() {
+      this.chatHistory = [];
+      localStorage.removeItem('aiTrainerChatHistory');
       const messagesContainer = document.getElementById('aiChatMessages');
-      if (!messagesContainer) return;
-
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `ai-chat-message ai-chat-message-${role}`;
-      
-      const bubble = document.createElement('div');
-      bubble.className = 'ai-chat-bubble';
-      bubble.textContent = text;
-      
-      messageDiv.appendChild(bubble);
-      messagesContainer.appendChild(messageDiv);
+      if (messagesContainer) {
+        messagesContainer.innerHTML = '';
+      }
+      this.sendWelcomeMessage();
     }
   }
 
   // ============================================================================
-  // INICIALIZACIÓN
+  // INICIALIZACIÓN AUTOMÁTICA
   // ============================================================================
-  
+
   function initAIChat() {
     setTimeout(() => {
-      window.aiTrainerChat = new AITrainerChat();
+      if (!window.aiTrainerChat) {
+        window.aiTrainerChat = new AITrainerChat();
+      }
     }, 500);
   }
 
@@ -809,5 +657,4 @@ RECUERDA: Personaliza con el contexto del usuario.
   } else {
     initAIChat();
   }
-
 })();

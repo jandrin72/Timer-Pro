@@ -1,6 +1,6 @@
 /**
  * AI Trainer Chat - Entrenador personal con IA usando Perplexity Sonar
- * Versión: 2.5 - Con proxy CORS corsproxy.io
+ * Versión: 2.6 - Fix alternancia de mensajes
  */
 
 (function() {
@@ -197,7 +197,8 @@
       };
 
       const welcomeMsg = welcomeMessages[appLang] || welcomeMessages.en;
-      this.addMessage(welcomeMsg, 'assistant');
+      // ✅ Marcar el mensaje de bienvenida con una flag especial
+      this.addMessage(welcomeMsg, 'assistant', true);
     }
 
     async sendMessage() {
@@ -243,7 +244,7 @@
       }
     }
 
-    addMessage(text, role) {
+    addMessage(text, role, isWelcome = false) {
       const messagesContainer = document.getElementById('aiChatMessages');
       if (!messagesContainer) {
         return;
@@ -251,8 +252,9 @@
 
       this.addMessageToDOM(text, role);
 
-      this.chatHistory.push({ role, text, timestamp: Date.now() });
-      if (this.chatHistory.length > CONFIG.MAX_HISTORY * 2) {
+      // ✅ Guardar con flag de bienvenida
+      this.chatHistory.push({ role, text, timestamp: Date.now(), isWelcome });
+      if (this.chatHistory.length > CONFIG.MAX_HISTORY * 2 + 1) {
         this.chatHistory = this.chatHistory.slice(-CONFIG.MAX_HISTORY * 2);
       }
     }
@@ -302,7 +304,7 @@
     }
 
     // ------------------------------------------------------------------------
-    // LLAMADA A PERPLEXITY SONAR CON CORSPROXY.IO
+    // LLAMADA A PERPLEXITY SONAR - CORREGIDA ALTERNANCIA
     // ------------------------------------------------------------------------
     
     getApiKey() {
@@ -325,15 +327,17 @@
         throw new Error('API Key no configurada');
       }
 
-      // Filtrar y alternar correctamente los mensajes user/assistant
-      const recentMessages = this.chatHistory
-        .slice(-CONFIG.MAX_HISTORY * 2)
-        .filter(msg => msg.role === 'user' || msg.role === 'assistant');
+      // ✅ CORRECCIÓN: Excluir mensajes de bienvenida y asegurar alternancia
+      const validMessages = this.chatHistory
+        .filter(msg => !msg.isWelcome && (msg.role === 'user' || msg.role === 'assistant'))
+        .slice(-CONFIG.MAX_HISTORY * 2);
 
+      // Construir array alternado correctamente
       const conversationHistory = [];
       let lastRole = null;
       
-      for (const msg of recentMessages) {
+      for (const msg of validMessages) {
+        // Solo agregar si el rol es diferente al anterior
         if (msg.role !== lastRole) {
           conversationHistory.push({
             role: msg.role,
@@ -343,6 +347,12 @@
         }
       }
 
+      // ✅ Si el historial empieza con 'assistant', quitarlo
+      if (conversationHistory.length > 0 && conversationHistory[0].role === 'assistant') {
+        conversationHistory.shift();
+      }
+
+      // Construir mensajes finales: system + historial + nuevo mensaje usuario
       const messages = [
         { role: 'system', content: systemPrompt },
         ...conversationHistory,
@@ -357,7 +367,7 @@
         top_p: 0.9
       };
 
-      // ✅ Usar corsproxy.io para evitar CORS
+      // Usar corsproxy.io
       const proxiedUrl = `https://corsproxy.io/?${encodeURIComponent(CONFIG.PERPLEXITY_API_URL)}`;
 
       const response = await fetch(proxiedUrl, {
@@ -371,7 +381,7 @@
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 150)}`);
       }
 
       const responseText = await response.text();

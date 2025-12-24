@@ -72,6 +72,21 @@ open index.html
 
 **No requiere instalación de dependencias ni servidor.** Solo abre `index.html` en tu navegador.
 
+### Configurar el Coach IA (Perplexity Sonar)
+
+1. Crea una API Key en [Perplexity](https://www.perplexity.ai/).
+2. Abre la consola del navegador y guarda tu key en `localStorage`:
+   ```js
+   localStorage.setItem('perplexity_api_key', 'pplx-XXXXX');
+   ```
+   (También puedes editar `src/utils/aiTrainerChat.js` y asignarla en `PERPLEXITY_API_KEY`).
+3. Evita abrir `index.html` con doble clic (origen `file://`). Levanta un servidor local simple (por ejemplo, `python -m http.server 8080` o `npx serve`) para que las llamadas a la API no sean bloqueadas por CORS.
+4. Si tu endpoint requiere proxy con CORS, guarda la URL en `localStorage`:
+   ```js
+   localStorage.setItem('perplexity_api_url', 'https://tu-proxy-con-cors/chat/completions');
+   ```
+5. Abre el chat (botón 💬) y conversa con el coach.
+
 ### Uso Básico
 
 1. **Selecciona tu idioma** desde el header
